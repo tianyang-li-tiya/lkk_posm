@@ -1,0 +1,13 @@
+<table>
+  <colgroup><col width="261"/><col width="477"/></colgroup>
+  <thead>
+    <tr><th background-color="light-gray">不做事项</th><th background-color="light-gray">说明</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>纯多维表格承载全流程</td><td><span text-color="blue">多维表格作为台账、管理视图和状态同步面，不作为复杂尺寸校验、生成主入口或 James 主 review 工作台。</span></td></tr>
+    <tr><td>完全无人审核</td><td>当前生成质量无法保证 100%，必须保留 James/设计评审</td></tr>
+    <tr><td>用户反复修改同一需求并回滚</td><td>MVP 提交后进入任务流，不做复杂版本回滚</td></tr>
+    <tr><td>自动处理所有下载权限异常</td><td>API 能配置部分权限，但企业安全策略和文件夹权限仍需 IT 配合</td></tr>
+    <tr><td>所有模板一次性上线</td><td>建议按模板逐套验收上线</td></tr>
+  </tbody>
+</table>

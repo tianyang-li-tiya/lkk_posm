@@ -1,0 +1,79 @@
+flowchart LR
+  %% LKK POSM Feishu App core business flow
+
+  subgraph U["业务需求方"]
+    U1["打开飞书 H5 应用"]
+    U2["填写 POSM 需求<br/>Campaign / 类型 / 模板 / 尺寸 / 城市或大区"]
+  end
+
+  subgraph H5["飞书 H5 应用"]
+    H1["飞书免登识别用户"]
+    H2["前端提示字段与模板规则"]
+    H3{"尺寸 / 比例<br/>是否通过校验"}
+  end
+
+  subgraph S["后端服务与生成引擎"]
+    S1["创建 task_id"]
+    S2["调用 POSM 生成引擎"]
+    S3["生成 PNG 预览 / SVG / 最终交付包"]
+    S4["回写生成状态与结果链接"]
+  end
+
+  subgraph B["飞书多维表格<br/>业务与 IT 统一管理台"]
+    B1["创建请求记录"]
+    B2["同步生成结果<br/>预览 / final 链接 / 状态 / 错误信息"]
+    B3{"James review<br/>是否通过"}
+    B4["记录不通过原因<br/>待人工修正或重传"]
+    B5["标记为可取用"]
+  end
+
+  subgraph D["飞书云盘"]
+    D1["上传至指定目录"]
+    D2["review 目录<br/>供 James 查看"]
+    D3["final 目录<br/>供取用方取用"]
+  end
+
+  subgraph R["James / 设计评审"]
+    R1["收到 review 提醒"]
+    R2["在多维表格中 review"]
+    R3["必要时人工修正并重传"]
+  end
+
+  subgraph N["飞书机器人通知"]
+    N1["通知 James review"]
+    N2["通知失败或异常处理人"]
+    N3["通知物料取用方"]
+  end
+
+  subgraph T["物料取用方"]
+    T1["收到取用通知"]
+    T2["打开飞书云盘 final 目录取用物料"]
+  end
+
+  U1 --> H1 --> H2 --> U2 --> H3
+  H3 -- "不通过" --> N2
+  H3 -- "通过" --> S1 --> B1 --> S2 --> S3 --> D1
+  D1 --> D2
+  D1 --> D3
+  D1 --> S4 --> B2 --> N1 --> R1 --> R2 --> B3
+  B3 -- "不通过" --> B4 --> R3 --> D1
+  B3 -- "通过" --> B5 --> N3 --> T1 --> T2
+  D3 -. "final 文件夹链接" .-> N3
+
+  classDef user fill:#E7F0FF,stroke:#245BDB,stroke-width:2px,color:#143B91
+  classDef app fill:#EEF7FF,stroke:#3370FF,stroke-width:2px,color:#143B91
+  classDef backend fill:#F4F6FA,stroke:#646A73,stroke-width:2px,color:#1F2329
+  classDef base fill:#EAF8F0,stroke:#2EA043,stroke-width:2px,color:#176B2C
+  classDef drive fill:#FFF7E6,stroke:#D97706,stroke-width:2px,color:#7C3E00
+  classDef review fill:#FCE8F3,stroke:#C026D3,stroke-width:2px,color:#7E227E
+  classDef notify fill:#F5F0FF,stroke:#7C3AED,stroke-width:2px,color:#4C1D95
+  classDef decision fill:#FFFFFF,stroke:#D14343,stroke-width:2px,color:#8F1D1D
+
+  class U1,U2,T1,T2 user
+  class H1,H2 app
+  class S1,S2,S3,S4 backend
+  class B1,B2,B4,B5 base
+  class D1,D2,D3 drive
+  class R1,R2,R3 review
+  class N1,N2,N3 notify
+  class H3,B3 decision

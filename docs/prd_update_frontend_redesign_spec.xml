@@ -1,0 +1,57 @@
+<h2><span text-color="blue">13. Web 应用前端重做规格（2026-06-14 增补）</span></h2>
+<callout emoji="📌" background-color="light-blue" border-color="blue" text-color="blue">
+  <p><span text-color="blue">本次增补用于指导 Web/H5 原型重构：当前页面不再以“带预填数据的生成工具”作为首屏，而改为真实业务工作台。首页只提供提交需求、我的任务、历史记录三个业务入口；James 用户额外看到 Review 工作台入口。表单页不展示实时生成预览，只有任务生成完成后才展示 PNG 预览和云盘结果。</span></p>
+</callout>
+<h3><span text-color="blue">13.1 页面结构</span></h3>
+<ul>
+  <li><span text-color="blue">工作台首页：只展示真实入口，不展示 mock 统计、示例任务卡片或实时 POSM 预览。</span></li>
+  <li><span text-color="blue">提交需求页：支持单个提交和批量 Excel 提交，默认业务字段为空，仅当前飞书用户身份可自动带出。</span></li>
+  <li><span text-color="blue">我的任务页：展示当前需求方仍在流程中的任务，包括已提交、生成中、待 Review、人工修正中、生成失败、通知失败等状态。</span></li>
+  <li><span text-color="blue">任务详情与溯源页：展示任务参数、生成结果、Base 同步、云盘目录、Review 记录、通知记录和完整溯源时间线。</span></li>
+  <li><span text-color="blue">历史记录页：展示已结束任务，支持按 Campaign、POSM 类型、状态、时间和提交方式筛选，并支持复制为新需求。</span></li>
+  <li><span text-color="blue">James Review 列表页：按待 Review、人工修正中、已通过/已通知、已拒绝、异常/超时分组展示任务。</span></li>
+  <li><span text-color="blue">James Review 详情页：James 在应用页面完成拒绝、标记人工修正、通过并允许取用、确认修正后放行等动作。</span></li>
+</ul>
+<h3><span text-color="blue">13.2 提交需求规则</span></h3>
+<ul>
+  <li><span text-color="blue">单个提交字段包括：需求方、Campaign、品牌/产品、POSM 类型、模板、宽度 mm、高度 mm、大区/城市/市场、语言、数量、交付用途、期望完成日期、参考附件、备注。</span></li>
+  <li><span text-color="blue">必填、格式、尺寸上下限和比例偏差等校验失败时，只在前端提示，不创建任务、不写 Base、不上传云盘、不发通知。</span></li>
+  <li><span text-color="blue">批量提交通过 Excel 模板完成。用户先下载模板，上传后系统逐行校验，展示错误行；用户确认后只为校验通过的行创建任务。</span></li>
+  <li><span text-color="blue">批量上传建议仅支持 .xlsx，单次不超过 10MB 和 500 行；错误行支持下载错误报告，正确行可部分提交。</span></li>
+</ul>
+<h3><span text-color="blue">13.3 状态、溯源与历史</span></h3>
+<ul>
+  <li><span text-color="blue">任务状态建议包含：草稿、已提交、生成中、生成失败、待 Review、审核拒绝、人工修正中、已通过、通知失败、已通知取用。</span></li>
+  <li><span text-color="blue">溯源事件需记录 event_type、actor、actor_role、timestamp、from_status、to_status、comment、artifact_link、source、visibility。</span></li>
+  <li><span text-color="blue">历史复用只能复制业务入参，如 Campaign、品牌/产品、POSM 类型、模板、语言、大区/城市/市场、交付用途、备注；不得复制 task_id、batch_id、生成结果链接、Review 状态、通知状态和溯源事件。</span></li>
+</ul>
+<h3><span text-color="blue">13.4 James Review 规则</span></h3>
+<ul>
+  <li><span text-color="blue">James Review 主入口是应用页面，不是飞书多维表格。Base 只作为轻量台账、状态同步面和业务/IT 管理视图。</span></li>
+  <li><span text-color="blue">MVP 中不拆分“审核通过”和“允许取用”两个按钮；James 点击“通过并允许取用”即代表业务放行。</span></li>
+  <li><span text-color="blue">James 拒绝时必须填写原因，不通知需求方。</span></li>
+  <li><span text-color="blue">James 标记人工修正中后，系统不得通过云盘目录是否出现新文件来判断修正完成。只有 James 回到应用页面点击“确认修正后放行”，才允许通知需求方。</span></li>
+  <li><span text-color="blue">通知需求方的门禁仍为：需求方是否可取用 = true，且需求方、最终云盘链接非空。</span></li>
+</ul>
+<h3><span text-color="blue">13.5 前端重构硬约束</span></h3>
+<ul>
+  <li><span text-color="blue">首页不放演示任务卡片，不放无法由真实数据支撑的统计数字。</span></li>
+  <li><span text-color="blue">表单业务字段默认全部为空，不预填 Campaign、POSM 类型、尺寸、区域和备注。</span></li>
+  <li><span text-color="blue">提交页不做实时生成预览；生成完成前只能展示任务状态或空状态。</span></li>
+  <li><span text-color="blue">所有 mock 数据必须集中在 adapter/mock 层，页面组件不得散落写死假数据。</span></li>
+  <li><span text-color="blue">James 放行前，任何用户视角页面都不得展示“已通知需求方”或“可取用”状态。</span></li>
+</ul>
+<h3><span text-color="blue">13.6 本轮开发范围</span></h3>
+<ul>
+  <li><span text-color="blue">本轮实现 Web 横向工作台布局、真实首页入口、单个提交、批量提交 mock、我的任务、历史记录、任务详情与溯源、James Review 列表、James Review 详情与状态流转。</span></li>
+  <li><span text-color="blue">本轮不接真实飞书免登、Base 写入、云盘上传、机器人通知、Excel 服务端解析和真实生成服务；这些能力通过 api.ts、feishu.ts、baseAdapter.ts、driveAdapter.ts、botAdapter.ts 等 adapter/mock 接口隔离。</span></li>
+</ul>
+<h3><span text-color="blue">13.7 验收重点</span></h3>
+<ul>
+  <li><span text-color="blue">首次进入首页时，没有假数据、假预览或假统计。</span></li>
+  <li><span text-color="blue">首次进入提交页时，除当前用户身份外，所有业务字段为空。</span></li>
+  <li><span text-color="blue">尺寸或必填校验失败时，只在前端提示，不创建任务。</span></li>
+  <li><span text-color="blue">Excel 上传可以展示逐行校验结果，并只为通过行创建任务。</span></li>
+  <li><span text-color="blue">James 未显式放行时，即使云盘目录发生变化，也不通知需求方。</span></li>
+  <li><span text-color="blue">James 放行后，系统写回状态并通知需求方取用。</span></li>
+</ul>

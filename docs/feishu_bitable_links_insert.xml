@@ -1,0 +1,58 @@
+<p><span text-color="blue">本次补充：多维表格是本项目的统一管理台和 James review 节点，以下开发文档用于支持任务记录创建、生成结果回写、review 状态读取、字段/视图配置和权限管理。</span></p>
+
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-blue"><span text-color="blue">多维表格能力</span></th>
+      <th background-color="light-blue"><span text-color="blue">开发文档</span></th>
+      <th background-color="light-blue"><span text-color="blue">与本项目的关系</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span text-color="blue">多维表格总览</span></td>
+      <td><a href="https://open.feishu.cn/document/ukTMukTMukTM/uUDN04SN0QjL1QDN/bitable-overview"><span text-color="blue">多维表格概述</span></a></td>
+      <td><span text-color="blue">确认多维表格资源模型、app_token、table_id、view_id、record_id、field_id、容量限制和接入流程。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">快速接入</span></td>
+      <td><a href="https://open.feishu.cn/document/home/quick-access-to-base/preparation"><span text-color="blue">快速接入多维表格</span></a></td>
+      <td><span text-color="blue">用于研发快速完成 Base OpenAPI 接入准备。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">多维表格 App</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app/create"><span text-color="blue">创建多维表格</span></a><span text-color="blue"> / </span><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app/get"><span text-color="blue">获取多维表格元数据</span></a></td>
+      <td><span text-color="blue">用于创建或读取项目使用的 Base，确认 app_token 和基本配置。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">数据表 Table</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table/list"><span text-color="blue">列出数据表</span></a><span text-color="blue"> / </span><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table/create"><span text-color="blue">新增数据表</span></a></td>
+      <td><span text-color="blue">用于定位或创建承载任务记录的数据表。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">字段 Field</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table-field/list"><span text-color="blue">列出字段</span></a><span text-color="blue"> / </span><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table-field/create"><span text-color="blue">新增字段</span></a><span text-color="blue"> / </span><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table-field/guide"><span text-color="blue">字段编辑指南</span></a></td>
+      <td><span text-color="blue">用于配置 task_id、review_status、final_folder_link、error_message 等字段。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">记录 Record</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table-record/create"><span text-color="blue">新增记录</span></a><span text-color="blue"> / </span><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table-record/update"><span text-color="blue">更新记录</span></a><span text-color="blue"> / </span><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table-record/search"><span text-color="blue">查询记录</span></a></td>
+      <td><span text-color="blue">用于创建请求记录、回写生成结果、读取 James review 状态。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">视图 View</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table-view/list"><span text-color="blue">列出视图</span></a><span text-color="blue"> / </span><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table-view/create"><span text-color="blue">新增视图</span></a><span text-color="blue"> / </span><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table-view/patch"><span text-color="blue">更新视图</span></a></td>
+      <td><span text-color="blue">用于配置业务方、IT、James 不同管理视图。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">高级权限</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-role/advanced-permission-guide"><span text-color="blue">高级权限概述</span></a><span text-color="blue"> / </span><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-role/list"><span text-color="blue">列出自定义权限</span></a></td>
+      <td><span text-color="blue">用于控制业务方、IT、James、系统应用在多维表格中的查看和编辑范围。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">自动化流程</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-workflow/list"><span text-color="blue">列出自动化流程</span></a></td>
+      <td><span text-color="blue">用于后续评估是否用 Base 自动化辅助状态流转或提醒。</span></td>
+    </tr>
+  </tbody>
+</table>

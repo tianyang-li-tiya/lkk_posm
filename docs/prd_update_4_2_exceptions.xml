@@ -1,0 +1,18 @@
+<table>
+  <colgroup><col width="220"/><col width="560"/></colgroup>
+  <thead>
+    <tr><th background-color="light-gray">场景</th><th background-color="light-gray">系统处理</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span text-color="blue">尺寸超出模板范围</span></td><td><span text-color="blue">H5 前端直接提示允许范围；不创建任务、不写 Base、不上传云盘、不通知。</span></td></tr>
+    <tr><td><span text-color="blue">比例不符合规则</span></td><td><span text-color="blue">H5 前端直接提示当前比例和允许比例；不创建任务、不写 Base、不上传云盘、不通知。</span></td></tr>
+    <tr><td>生成失败</td><td>状态标记失败，通知运营/实施，不通知需求方取用</td></tr>
+    <tr><td>上传云盘失败</td><td>重试；仍失败则通知运维处理</td></tr>
+    <tr><td>同步多维表格失败</td><td>记录失败并重试；仍失败则通知运营/实施处理，避免任务脱离统一管理台</td></tr>
+    <tr><td><span text-color="blue">评审不通过</span></td><td><span text-color="blue">应用页面中标记拒绝或人工修正中；需求方是否可取用保持 false，不通知需求方。</span></td></tr>
+    <tr><td><span text-color="blue">云盘目录内多文件或多版本</span></td><td><span text-color="blue">系统不得通过目录文件变化推断 James 已完成，必须等待 James 在应用页面显式确认。</span></td></tr>
+    <tr><td><span text-color="blue">James 人工修正后未确认</span></td><td><span text-color="blue">即使云盘目录已有新文件，也保持审核中或人工修正中，不通知需求方。</span></td></tr>
+    <tr><td>用户无飞书权限</td><td>提示联系 LKK IT 开通应用可用范围</td></tr>
+    <tr><td>机器人通知失败</td><td>记录失败并重试；超过阈值转人工通知</td></tr>
+  </tbody>
+</table>

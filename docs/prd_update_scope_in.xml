@@ -1,0 +1,24 @@
+<table>
+  <colgroup><col width="371"/><col width="426"/></colgroup>
+  <thead>
+    <tr><th background-color="light-gray">模块</th><th background-color="light-gray">MVP 是否包含</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>飞书 H5 应用入口</td><td>是</td></tr>
+    <tr><td>飞书免登获取用户身份</td><td>是</td></tr>
+    <tr><td>POSM 类型/模板选择</td><td>是</td></tr>
+    <tr><td>尺寸、比例、上下限校验</td><td>是</td></tr>
+    <tr><td>生成 PNG/SVG/最终交付包</td><td>是</td></tr>
+    <tr><td>上传飞书云盘并生成文件夹链接</td><td>是</td></tr>
+    <tr><td>机器人通知设计评审人</td><td>是</td></tr>
+    <tr><td>评审通过后通知需求方</td><td>是</td></tr>
+    <tr><td>基础状态记录</td><td>是</td></tr>
+    <tr><td>请求和生成结果同步到飞书多维表格</td><td>是</td></tr>
+    <tr><td><span text-color="blue">James 在飞书 H5 应用页面完成 review</span></td><td><span text-color="blue">是</span></td></tr>
+    <tr><td><span text-color="blue">多维表格作为业务方和 IT 侧台账与管理视图</span></td><td><span text-color="blue">是</span></td></tr>
+    <tr><td>模板启停和 range 配置</td><td>建议 P1，MVP 可先配置化 JSON 或后台维护</td></tr>
+    <tr><td>多维表格结构配置化</td><td>P1，MVP 先接入一张默认表</td></tr>
+    <tr><td>用户可见完整日志中心</td><td>P1</td></tr>
+    <tr><td>自动重新生成或回滚</td><td>不做，后续评估</td></tr>
+  </tbody>
+</table>

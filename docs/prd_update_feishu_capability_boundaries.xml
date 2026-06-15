@@ -1,0 +1,48 @@
+<h3><span text-color="blue">12.x 飞书能力边界与需自研项</span></h3>
+<p><span text-color="blue">结论：当前需求没有发现“飞书开放能力完全无法接入”的硬阻塞；但以下能力不是飞书原生业务能力，飞书只提供 H5 容器、文件、消息、多维表格等底层 API，需要由 LKK H5 应用、后端服务、AI/渲染服务和 IT 配置共同实现。</span></p>
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-blue"><p><span text-color="blue">需求项</span></p></th>
+      <th background-color="light-blue"><p><span text-color="blue">官方能力依据 / 边界</span></p></th>
+      <th background-color="light-blue"><p><span text-color="blue">方案处理</span></p></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td vertical-align="top"><p><span text-color="blue">POSM 图片生成、SVG/交付包生成</span></p></td>
+      <td vertical-align="top"><p><a href="https://open.feishu.cn/document/client-docs/h5/introduction"><span text-color="blue">飞书 H5 网页应用</span></a><span text-color="blue">支持在飞书客户端内承载网页应用和 JSAPI；</span><a href="https://open.feishu.cn/document/server-docs/docs/drive-v1/introduction"><span text-color="blue">飞书云盘</span></a><span text-color="blue">支持文件/文件夹/上传下载。飞书不提供 POSM 设计生成、模板渲染或 AI 出图引擎。</span></p></td>
+      <td vertical-align="top"><p><span text-color="blue">需自研生成服务、模板规则、渲染/导出服务；飞书只作为入口、身份、存储和通知载体。</span></p></td>
+    </tr>
+    <tr>
+      <td vertical-align="top"><p><span text-color="blue">尺寸/比例/模板业务校验</span></p></td>
+      <td vertical-align="top"><p><span text-color="blue">H5 能承载交互页面，但官方能力不包含 LKK POSM 尺寸、比例、Campaign/POSM 类型联动等业务规则。</span></p></td>
+      <td vertical-align="top"><p><span text-color="blue">前端即时校验 + 后端二次校验；失败只在 H5 页面提示，不写 Base、不上传云盘、不发通知。</span></p></td>
+    </tr>
+    <tr>
+      <td vertical-align="top"><p><span text-color="blue">判断 James 是否已完成多文件目录修正</span></p></td>
+      <td vertical-align="top"><p><a href="https://open.feishu.cn/document/server-docs/docs/drive-v1/introduction"><span text-color="blue">云空间概述</span></a><span text-color="blue">说明 Drive 有文件、文件夹、版本和事件能力，但目录新增/替换文件不能表达“业务审核已完成”。</span></p></td>
+      <td vertical-align="top"><p><span text-color="blue">系统不得通过云盘目录变化自动判断完成；只认 James 在 H5 应用页面点击“确认通过并允许取用”。</span></p></td>
+    </tr>
+    <tr>
+      <td vertical-align="top"><p><span text-color="blue">多维表格承载长期大规模流程数据</span></p></td>
+      <td vertical-align="top"><p><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/bitable-v1/app-table-record/search"><span text-color="blue">查询记录 API</span></a><span text-color="blue">单次最多查询 500 行并分页，文档错误码包含记录数量超限、请求超时、数据量过大和并发编辑导致阻塞等边界。</span></p></td>
+      <td vertical-align="top"><p><span text-color="blue">Base 只做轻量台账、管理视图和状态同步，不存大文件；历史数据按 Campaign/月度归档或拆表，后端保留任务主数据。</span></p></td>
+    </tr>
+    <tr>
+      <td vertical-align="top"><p><span text-color="blue">每 3 小时批量扫描、失败重试、补偿提醒</span></p></td>
+      <td vertical-align="top"><p><span text-color="blue">飞书提供 Base 查询和 IM 消息发送 API，但不替业务系统实现定时调度、幂等、重试、失败补偿和状态机。</span></p></td>
+      <td vertical-align="top"><p><span text-color="blue">需由 LKK 后端 Worker/Scheduler 实现扫描待审核任务、分页读取、频控、重试和操作日志。</span></p></td>
+    </tr>
+    <tr>
+      <td vertical-align="top"><p><span text-color="blue">通知一定触达指定业务方</span></p></td>
+      <td vertical-align="top"><p><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message/create"><span text-color="blue">发送消息 API</span></a><span text-color="blue">要求开启机器人能力，接收人需在机器人可用范围内；同一用户/群有频控，消息体也有大小限制。</span></p></td>
+      <td vertical-align="top"><p><span text-color="blue">LKK IT 需配置机器人可用范围、权限和群组；系统需记录通知失败并支持重试或人工兜底。</span></p></td>
+    </tr>
+    <tr>
+      <td vertical-align="top"><p><span text-color="blue">云盘交付权限完全由应用自行决定</span></p></td>
+      <td vertical-align="top"><p><span text-color="blue">Drive 支持协作者权限和公开权限设置，但下载、分享、复制、外部访问等仍受企业安全策略、文件归属和管理员配置影响。</span></p></td>
+      <td vertical-align="top"><p><span text-color="blue">LKK IT 需确认交付根目录、协作者策略、下载/复制/分享策略；PRD 中保留为上线前权限确认项。</span></p></td>
+    </tr>
+  </tbody>
+</table>

@@ -1,0 +1,68 @@
+<p><span text-color="blue">本次补充：以下为本 PRD 依赖的飞书开放平台开发文档链接，供 LKK IT、研发和实施团队核对权限、接入方式与接口边界。</span></p>
+
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-blue"><span text-color="blue">能力域</span></th>
+      <th background-color="light-blue"><span text-color="blue">开发文档</span></th>
+      <th background-color="light-blue"><span text-color="blue">与本项目的关系</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span text-color="blue">飞书 H5 网页应用</span></td>
+      <td><a href="https://open.feishu.cn/document/client-docs/h5/introduction"><span text-color="blue">网页应用概述</span></a></td>
+      <td><span text-color="blue">用于将 POSM 生成入口嵌入飞书客户端，而不是作为独立站点暴露。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">H5 JSAPI 鉴权</span></td>
+      <td><a href="https://open.feishu.cn/document/uYjL24iN/uEzM4YjLxMDO24SMzgjN"><span text-color="blue">鉴权调用 JSAPI</span></a></td>
+      <td><span text-color="blue">用于 H5 页面调用飞书客户端能力前的 config 鉴权。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">飞书免登</span></td>
+      <td><a href="https://open.feishu.cn/document/uYjL24iN/uMTMuMTMuMTM/development-guide/step-3"><span text-color="blue">配置应用免登流程</span></a></td>
+      <td><span text-color="blue">用于识别当前飞书用户，避免邮箱或账号密码登录。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">飞书机器人</span></td>
+      <td><a href="https://open.feishu.cn/document/client-docs/bot-v3/bot-overview"><span text-color="blue">机器人概述</span></a></td>
+      <td><span text-color="blue">用于状态通知、评审提醒、失败提醒和取用通知。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">发送机器人消息</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message/create"><span text-color="blue">发送消息 API</span></a></td>
+      <td><span text-color="blue">用于向 James、业务取用方、运营或 IT 发送文本、卡片和链接消息。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">云空间 / Drive</span></td>
+      <td><a href="https://open.feishu.cn/document/server-docs/docs/drive-v1/introduction"><span text-color="blue">云空间概述</span></a></td>
+      <td><span text-color="blue">用于理解飞书云盘中文件、文件夹、节点、上传下载和容量限制。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">云空间文件</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/drive-v1/file/file-overview"><span text-color="blue">文件概述</span></a></td>
+      <td><span text-color="blue">用于上传生成文件、获取文件 token、下载文件和管理文件。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">云空间文件夹</span></td>
+      <td><a href="https://open.feishu.cn/document/ukTMukTMukTM/ugTNzUjL4UzM14CO1MTN/folder-overview"><span text-color="blue">文件夹概述</span></a></td>
+      <td><span text-color="blue">用于创建或定位 POSM 生成结果的交付目录。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">协作者权限</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/drive-v1/permission-member/create"><span text-color="blue">增加协作者权限</span></a></td>
+      <td><span text-color="blue">用于给用户、群组或应用配置云文档/云盘资源访问权限。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">云文档权限设置</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/drive-v1/permission-public/patch"><span text-color="blue">更新云文档权限设置</span></a></td>
+      <td><span text-color="blue">用于控制谁可以复制、打印、下载，以及链接分享策略。</span></td>
+    </tr>
+    <tr>
+      <td><span text-color="blue">云空间 FAQ</span></td>
+      <td><a href="https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/drive-v1/faq"><span text-color="blue">云空间常见问题</span></a></td>
+      <td><span text-color="blue">用于确认应用访问个人云盘文件夹、下载权限和上传限制等问题。</span></td>
+    </tr>
+  </tbody>
+</table>

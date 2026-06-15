@@ -1,0 +1,49 @@
+<h3><span text-color="blue">5.7 飞书多维表格台账与状态同步</span></h3>
+<p><span text-color="blue">飞书多维表格是业务方和 IT 侧共同可见的轻量台账、管理视图和状态同步面，用于承载请求记录、生成结果索引、云盘链接、预览图链接、状态流转和最终可取用门禁。James 的主 review 操作界面在飞书 H5 应用页面中，不在多维表格中完成。</span></p>
+<p>MVP 默认接入一张指定多维表格；后续多维表格应支持配置化，以适配不同 Campaign、不同业务团队或不同表结构。</p>
+<table>
+  <colgroup><col width="150"/><col width="560"/></colgroup>
+  <thead>
+    <tr><th background-color="light-gray">能力</th><th background-color="light-gray">需求</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>请求同步</td><td>用户提交并通过校验后，系统在多维表格中创建一条任务记录</td></tr>
+    <tr><td><span text-color="blue">结果同步</span></td><td><span text-color="blue">生成完成后，系统回写 POSM PNG 预览链接、POSM SVG 云盘链接、生成状态、错误信息等。</span></td></tr>
+    <tr><td><span text-color="blue">Review 接入</span></td><td><span text-color="blue">James 在 H5 应用页面完成 review，系统将 review 结果和可取用状态同步回多维表格。</span></td></tr>
+    <tr><td><span text-color="blue">通知门禁</span></td><td><span text-color="blue">只有需求方是否可取用为 true，且需求方与 POSM SVG 链接非空，系统才通知需求方。</span></td></tr>
+    <tr><td>统一管理</td><td>业务方和 IT 侧通过多维表格查看任务、状态、文件链接和异常</td></tr>
+    <tr><td><span text-color="blue">存储边界</span></td><td><span text-color="blue">多维表格不保存大文件本体，仅保存轻量索引、预览图链接、云盘链接和状态。</span></td></tr>
+    <tr><td>配置化</td><td><span text-color="blue">后续支持配置多维表格 app_token、table_id、字段映射、视图规则和状态枚举。</span></td></tr>
+  </tbody>
+</table>
+<p><span text-color="blue">MVP 使用现有多维表格字段，不新增字段：</span></p>
+<table>
+  <colgroup><col width="260"/><col width="130"/><col width="420"/></colgroup>
+  <thead>
+    <tr><th background-color="light-gray">字段</th><th background-color="light-gray">类型</th><th background-color="light-gray">说明</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>需求方</td><td>人员</td><td><span text-color="blue">最终通知对象，默认等于提交人</span></td></tr>
+    <tr><td>是否确认开始生成</td><td>复选框</td><td>生成任务触发门禁</td></tr>
+    <tr><td>POSM 类型 / Campaign 类型</td><td>单选</td><td>生成入参</td></tr>
+    <tr><td>POSM 高（mm）（限制最大/小） / POSM 宽（mm）（限制） / 比例（自动算+限制）</td><td>文本</td><td>生成入参和前端校验依据</td></tr>
+    <tr><td>POSM PNG</td><td>URL 文本</td><td><span text-color="blue">review 和管理用预览图链接</span></td></tr>
+    <tr><td>POSM SVG</td><td>URL 文本</td><td><span text-color="blue">最终云盘目录或文件链接</span></td></tr>
+    <tr><td>Studio Review</td><td>人员</td><td>James / 设计评审人</td></tr>
+    <tr><td>POSM 生成状态</td><td>单选</td><td><span text-color="blue">展示完整流程状态，建议扩展为：待开始、生成中、生成失败、待审核、审核拒绝、人工修正中、已通过、已通知取用。</span></td></tr>
+    <tr><td>需求方是否可取用</td><td>复选框</td><td><span text-color="blue">最终放行门禁；为 true 且 POSM SVG 非空时才通知需求方。</span></td></tr>
+  </tbody>
+</table>
+<p>权限建议：</p>
+<table>
+  <colgroup><col width="150"/><col width="560"/></colgroup>
+  <thead>
+    <tr><th background-color="light-gray">角色</th><th background-color="light-gray">多维表格权限</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>业务方</td><td><span text-color="blue">可阅读任务状态、预览和最终链接；不建议编辑流程字段。</span></td></tr>
+    <tr><td>IT 侧</td><td>可管理表结构、字段、视图和权限</td></tr>
+    <tr><td>James/评审人</td><td><span text-color="blue">主要在 H5 应用页面 review；可查看 Base 管理视图，必要时查看或校验文件链接。</span></td></tr>
+    <tr><td>系统应用</td><td><span text-color="blue">可通过 API 创建记录、更新状态、写入预览和云盘链接、读取放行门禁。</span></td></tr>
+  </tbody>
+</table>

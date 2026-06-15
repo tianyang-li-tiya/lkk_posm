@@ -1,0 +1,3 @@
+<blockquote>
+  <p><span text-color="blue">决策 1：主入口和 James review 均采用飞书 H5 应用，多维表格作为台账、管理视图和状态同步面。</span><br/><span text-color="blue">理由：尺寸、比例、模板联动、错误提示、用户身份识别、多文件目录查看、人工修正后的显式确认，都更适合在 H5 应用中完成；请求记录、生成结果索引、云盘链接和流程状态则沉淀到多维表格，方便业务方和 IT 侧统一查看和管理。</span></p>
+</blockquote>

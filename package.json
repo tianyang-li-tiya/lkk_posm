@@ -1,0 +1,14 @@
+{
+  "name": "lkk-posm-gen",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.5.3",
+  "scripts": {
+    "dev": "pnpm --filter h5 dev",
+    "build": "pnpm --filter h5 build",
+    "preview": "pnpm --filter h5 preview"
+  },
+  "workspaces": [
+    "apps/*"
+  ]
+}

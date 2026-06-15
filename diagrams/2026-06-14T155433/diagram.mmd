@@ -1,0 +1,83 @@
+flowchart LR
+  %% LKK POSM Feishu App core business flow v3
+
+  subgraph U["业务需求方"]
+    U1["打开飞书 H5 应用"]
+    U2["填写 POSM 需求<br/>Campaign / 类型 / 尺寸 / 区域"]
+    U3["收到取用通知"]
+  end
+
+  subgraph H5["飞书 H5 应用"]
+    H1["飞书免登识别用户"]
+    H2["模板规则提示"]
+    H3{"尺寸 / 比例<br/>是否通过"}
+    H4["James review 页面<br/>预览 / 云盘目录 / 参数 / 需求方"]
+    H6{"James 显式确认<br/>是否可取用"}
+  end
+
+  subgraph S["后端服务与生成引擎"]
+    S1["创建 task_id"]
+    S2["调用 POSM 生成引擎"]
+    S3["生成 PNG 预览 / SVG / 交付包"]
+    S4["同步状态与链接"]
+  end
+
+  subgraph D["飞书云盘"]
+    D1["任务目录"]
+    D2["系统上传原图 / SVG / 交付包"]
+    D3["James 替换或补充人工修正版"]
+  end
+
+  subgraph B["飞书多维表格<br/>轻量台账 + 管理视图"]
+    B1["创建任务记录"]
+    B2["写入 POSM PNG 预览链接"]
+    B3["写入 POSM SVG / 云盘目录链接"]
+    B4["更新 POSM 生成状态"]
+    B5["需求方是否可取用 = false"]
+    B6["需求方是否可取用 = true"]
+    B7["业务 / IT 查看全流程状态"]
+  end
+
+  subgraph N["飞书机器人通知"]
+    N1["每 3 小时提醒 James review"]
+    N2["通知运营 / 实施处理失败"]
+    N3["通知需求方取用"]
+  end
+
+  subgraph R["James / Studio Review"]
+    R1["收到 review 提醒"]
+    R2["在应用页面 review"]
+    R3["不通过时自行修正云盘文件"]
+    R4["回到应用页面确认可取用"]
+  end
+
+  U1 --> H1 --> H2 --> U2 --> H3
+  H3 -- "不通过" --> H2
+  H3 -- "通过" --> S1 --> B1 --> S2 --> S3
+  S3 --> D2 --> D1
+  S3 --> S4 --> B2 --> B3 --> B4 --> B5
+  B5 --> N1 --> R1 --> R2 --> H4 --> H6
+  H6 -- "通过" --> B6 --> N3 --> U3
+  H6 -- "不通过" --> R3 --> D3 --> D1 --> R4 --> H4
+  B6 --> B4
+  B1 -. "状态 / 预览 / 链接" .-> B7
+  D1 -. "目录变化不代表完成" .-> H6
+  S2 -. "失败" .-> N2
+
+  classDef user fill:#E7F0FF,stroke:#245BDB,stroke-width:2px,color:#143B91
+  classDef app fill:#EEF7FF,stroke:#3370FF,stroke-width:2px,color:#143B91
+  classDef backend fill:#F4F6FA,stroke:#646A73,stroke-width:2px,color:#1F2329
+  classDef base fill:#EAF8F0,stroke:#2EA043,stroke-width:2px,color:#176B2C
+  classDef drive fill:#FFF7E6,stroke:#D97706,stroke-width:2px,color:#7C3E00
+  classDef review fill:#FCE8F3,stroke:#C026D3,stroke-width:2px,color:#7E227E
+  classDef notify fill:#F5F0FF,stroke:#7C3AED,stroke-width:2px,color:#4C1D95
+  classDef decision fill:#FFFFFF,stroke:#D14343,stroke-width:2px,color:#8F1D1D
+
+  class U1,U2,U3 user
+  class H1,H2,H4 app
+  class S1,S2,S3,S4 backend
+  class B1,B2,B3,B4,B5,B6,B7 base
+  class D1,D2,D3 drive
+  class R1,R2,R3,R4 review
+  class N1,N2,N3 notify
+  class H3,H6 decision

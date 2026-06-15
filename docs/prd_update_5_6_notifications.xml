@@ -1,0 +1,14 @@
+<table>
+  <colgroup><col width="190"/><col width="180"/><col width="420"/></colgroup>
+  <thead>
+    <tr><th background-color="light-gray">触发点</th><th background-color="light-gray">接收人</th><th background-color="light-gray">内容</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>提交成功</td><td>需求方</td><td>已提交，等待生成</td></tr>
+    <tr><td><span text-color="blue">校验失败</span></td><td><span text-color="blue">不发机器人通知</span></td><td><span text-color="blue">H5 页面直接提示失败原因和修改建议</span></td></tr>
+    <tr><td><span text-color="blue">生成完成待评审</span></td><td><span text-color="blue">James/评审人</span></td><td><span text-color="blue">应用 review 页面链接、预览图、任务信息、云盘目录链接</span></td></tr>
+    <tr><td><span text-color="blue">James 显式确认可取用</span></td><td><span text-color="blue">需求方</span></td><td><span text-color="blue">final 文件夹或云盘文件链接</span></td></tr>
+    <tr><td><span text-color="blue">评审不通过</span></td><td><span text-color="blue">James/运营</span></td><td><span text-color="blue">进入人工修正；不通知需求方</span></td></tr>
+    <tr><td>系统失败</td><td>运营/实施</td><td>错误类型、task_id、重试状态</td></tr>
+  </tbody>
+</table>

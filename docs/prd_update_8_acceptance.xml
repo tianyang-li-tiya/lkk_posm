@@ -1,0 +1,21 @@
+<h2><span text-color="blue">8. 验收标准</span></h2>
+<table>
+  <colgroup><col width="160"/><col width="560"/></colgroup>
+  <thead>
+    <tr><th background-color="light-gray">模块</th><th background-color="light-gray">验收标准</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>免登</td><td>飞书内打开应用后，无需账号密码即可识别当前用户</td></tr>
+    <tr><td><span text-color="blue">表单校验</span></td><td><span text-color="blue">超出尺寸/比例的输入 100% 在 H5 前端被拦截并提示原因；Base、云盘、通知均无新增动作。</span></td></tr>
+    <tr><td>生成任务</td><td>合法输入可创建 task_id 并进入生成队列</td></tr>
+    <tr><td>云盘上传</td><td>成功生成的任务 100% 有可访问 folder 链接</td></tr>
+    <tr><td><span text-color="blue">多维表格同步</span></td><td><span text-color="blue">通过校验的任务 100% 在多维表格中创建记录；生成结果、预览图链接、云盘链接和状态可回写。</span></td></tr>
+    <tr><td><span text-color="blue">应用页面 Review</span></td><td><span text-color="blue">James 可在 H5 应用页面查看预览图、云盘目录、生成参数和需求方，并执行通过、拒绝、人工修正后放行。</span></td></tr>
+    <tr><td><span text-color="blue">显式确认门禁</span></td><td><span text-color="blue">James 未在应用页面显式确认前，即使云盘目录有文件变化，也不得通知需求方。</span></td></tr>
+    <tr><td><span text-color="blue">可取用门禁</span></td><td><span text-color="blue">只有需求方是否可取用为 true 且 POSM SVG 非空时，才能通知需求方。</span></td></tr>
+    <tr><td><span text-color="blue">评审通知</span></td><td><span text-color="blue">生成完成后评审人收到机器人卡片，卡片入口指向应用 review 页面。</span></td></tr>
+    <tr><td><span text-color="blue">用户通知</span></td><td><span text-color="blue">James 显式确认可取用后，需求方收到 final 链接。</span></td></tr>
+    <tr><td>权限</td><td>未授权用户无法访问非本人或非授权文件</td></tr>
+    <tr><td>日志</td><td>任一 task_id 可追溯提交、生成、上传、通知、评审状态</td></tr>
+  </tbody>
+</table>

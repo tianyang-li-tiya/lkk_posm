@@ -1,0 +1,16 @@
+<ol>
+  <li seq="1"><span text-color="blue">用户在飞书工作台打开 POSM 生成应用。</span></li>
+  <li><span text-color="blue">系统通过飞书免登识别用户身份。</span></li>
+  <li><span text-color="blue">用户选择 Campaign、POSM 类型、模板、城市或大区，填写宽高等参数。</span></li>
+  <li><span text-color="blue">前端根据模板规则校验尺寸、比例、上下限；校验失败时直接在 H5 页面提示，不创建任务、不写入多维表格、不上传云盘、不发送通知。</span></li>
+  <li><span text-color="blue">校验通过后创建生成任务，并将请求记录同步到飞书多维表格，作为业务方和 IT 侧可见的台账记录。</span></li>
+  <li><span text-color="blue">后端调用生成引擎输出 PNG 预览、SVG、最终交付包。</span></li>
+  <li><span text-color="blue">系统将实际文件上传至飞书云盘任务目录，云盘承载原图、SVG、交付包以及后续 James 人工修正版。</span></li>
+  <li><span text-color="blue">系统将 Base 记录更新为待审核，写入 POSM PNG 预览图链接、POSM SVG 云盘目录或文件链接、POSM 生成状态等轻量索引。</span></li>
+  <li><span text-color="blue">系统每 3 小时收割待审核任务，通知 James 或 Studio Review 人员进入飞书 H5 应用 review 页面。</span></li>
+  <li><span text-color="blue">James 在应用页面查看预览图、云盘目录、生成参数和需求方信息。</span></li>
+  <li><span text-color="blue">如果 James 通过，点击“确认通过并允许取用”；系统写回多维表格，将需求方是否可取用置为 true，并通知需求方取用。</span></li>
+  <li><span text-color="blue">如果 James 不通过，需求方不收到通知；James 可自行在云盘目录中替换或补充文件，完成后回到应用页面显式确认放行。</span></li>
+  <li><span text-color="blue">系统不通过云盘目录是否新增文件判断 James 是否完成，只认应用页面中的显式确认动作。</span></li>
+  <li><span text-color="blue">通知成功后，任务状态更新为已通知取用。</span></li>
+</ol>

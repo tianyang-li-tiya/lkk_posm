@@ -1,0 +1,82 @@
+flowchart LR
+  %% LKK POSM Feishu App core business flow v2
+
+  subgraph U["业务需求方"]
+    U1["打开飞书 H5 应用"]
+    U2["填写 POSM 需求<br/>Campaign / 类型 / 模板 / 尺寸 / 城市或大区"]
+  end
+
+  subgraph H5["飞书 H5 应用"]
+    H1["飞书免登识别用户"]
+    H2["前端提示字段与模板规则"]
+    H3{"尺寸 / 比例<br/>是否通过校验"}
+  end
+
+  subgraph S["后端服务与生成引擎"]
+    S1["创建 task_id"]
+    S2["调用 POSM 生成引擎"]
+    S3["生成 PNG 预览 / SVG / 最终交付包"]
+    S4["同步生成状态与结果元数据"]
+  end
+
+  subgraph B["飞书多维表格<br/>业务与 IT 统一管理台"]
+    B1["创建请求记录"]
+    B2["上传并保存生成结果<br/>PNG / SVG / 交付包附件或链接"]
+    B3["记录状态<br/>待 review / 通过 / 不通过 / 已交付"]
+    B4["每 3 小时收割待 review 记录"]
+    B5{"James review<br/>是否通过"}
+    B6["记录不通过原因<br/>等待 James 修正版链接"]
+    B7["回写 James 提供的新链接"]
+    B8["记录云盘交付位置<br/>同步给业务侧"]
+  end
+
+  subgraph R["James / 设计评审"]
+    R1["收到批量 review 提醒"]
+    R2["在多维表格中 review 结果"]
+    R3["不通过时自行修正"]
+    R4["将新链接放入飞书云盘并回填"]
+  end
+
+  subgraph D["飞书云盘"]
+    D1["正式交付目录"]
+    D2["系统上传通过后的正式物料"]
+    D3["James 上传人工修正版物料"]
+  end
+
+  subgraph N["飞书机器人通知"]
+    N1["每 3 小时通知 James review"]
+    N2["通知校验失败或异常处理人"]
+    N3["通知业务侧取用位置"]
+  end
+
+  subgraph T["物料取用方 / 业务侧"]
+    T1["收到取用通知"]
+    T2["打开飞书云盘正式目录取用物料"]
+  end
+
+  U1 --> H1 --> H2 --> U2 --> H3
+  H3 -- "不通过" --> N2
+  H3 -- "通过" --> S1 --> B1 --> S2 --> S3 --> B2
+  B2 --> S4 --> B3 --> B4 --> N1 --> R1 --> R2 --> B5
+  B5 -- "通过" --> D2 --> D1 --> B8 --> N3 --> T1 --> T2
+  B5 -- "不通过" --> B6 --> R3 --> R4 --> D3 --> D1
+  D3 --> B7 --> B8
+  B8 -. "云盘正式目录 / 文件链接" .-> N3
+
+  classDef user fill:#E7F0FF,stroke:#245BDB,stroke-width:2px,color:#143B91
+  classDef app fill:#EEF7FF,stroke:#3370FF,stroke-width:2px,color:#143B91
+  classDef backend fill:#F4F6FA,stroke:#646A73,stroke-width:2px,color:#1F2329
+  classDef base fill:#EAF8F0,stroke:#2EA043,stroke-width:2px,color:#176B2C
+  classDef drive fill:#FFF7E6,stroke:#D97706,stroke-width:2px,color:#7C3E00
+  classDef review fill:#FCE8F3,stroke:#C026D3,stroke-width:2px,color:#7E227E
+  classDef notify fill:#F5F0FF,stroke:#7C3AED,stroke-width:2px,color:#4C1D95
+  classDef decision fill:#FFFFFF,stroke:#D14343,stroke-width:2px,color:#8F1D1D
+
+  class U1,U2,T1,T2 user
+  class H1,H2 app
+  class S1,S2,S3,S4 backend
+  class B1,B2,B3,B4,B6,B7,B8 base
+  class D1,D2,D3 drive
+  class R1,R2,R3,R4 review
+  class N1,N2,N3 notify
+  class H3,B5 decision

@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+apps/*/node_modules/
+apps/*/dist/
+apps/*/*.tsbuildinfo
+.playwright-mcp/
+lkk-reference-home.png
+lkk-posm-*.png

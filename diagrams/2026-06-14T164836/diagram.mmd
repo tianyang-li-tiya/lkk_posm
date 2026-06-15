@@ -1,0 +1,46 @@
+flowchart TD
+  A["1. 需求方在飞书应用提交需求"]
+  B{"2. 尺寸 / 比例校验"}
+  B1["页面直接提示错误<br/>不写 Base / 不上传 / 不通知"]
+  C["3. 创建任务<br/>同步 Base 台账"]
+  D["4. 生成 POSM<br/>PNG 预览 / SVG / 交付包"]
+  E["5. 文件上传飞书云盘<br/>原图和最终文件都在云盘"]
+  F["6. Base 写轻量信息<br/>预览图 + 云盘链接 + 状态"]
+  G["7. 每 3 小时提醒 James"]
+  H["8. James 在应用页面 Review<br/>看预览、参数、云盘目录"]
+  I{"9. James 是否确认可取用"}
+  J["10. 系统写回 Base<br/>需求方是否可取用 = true"]
+  K["11. 通知需求方<br/>发送最终云盘链接"]
+  L["James 自行修正云盘文件<br/>完成后回应用页面确认"]
+  M["关键规则：Base 只是台账<br/>不作为 James 主审核台"]
+  N["关键规则：不能靠云盘目录变化<br/>判断 James 已完成"]
+
+  A --> B
+  B -- "失败" --> B1
+  B -- "通过" --> C --> D
+  D --> E
+  D --> F
+  E --> G
+  F --> G
+  G --> H --> I
+  I -- "通过" --> J --> K
+  I -- "不通过" --> L --> H
+  F -.-> M
+  E -.-> N
+  N -.-> H
+
+  classDef start fill:#E7F0FF,stroke:#245BDB,stroke-width:2px,color:#143B91
+  classDef app fill:#EEF7FF,stroke:#3370FF,stroke-width:2px,color:#143B91
+  classDef base fill:#EAF8F0,stroke:#2EA043,stroke-width:2px,color:#176B2C
+  classDef drive fill:#FFF7E6,stroke:#D97706,stroke-width:2px,color:#7C3E00
+  classDef review fill:#FCE8F3,stroke:#C026D3,stroke-width:2px,color:#7E227E
+  classDef notify fill:#F5F0FF,stroke:#7C3AED,stroke-width:2px,color:#4C1D95
+  classDef decision fill:#FFFFFF,stroke:#D14343,stroke-width:2px,color:#8F1D1D
+  classDef rule fill:#F4F6FA,stroke:#646A73,stroke-width:2px,color:#1F2329
+
+  class A,B1,C,H start
+  class D app
+  class F,J,M base
+  class E,L,N drive
+  class G,K notify
+  class B,I decision
