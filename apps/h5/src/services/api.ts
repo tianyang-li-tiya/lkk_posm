@@ -1,6 +1,8 @@
-import { validateSize } from "../domain/templateRules";
+import ExcelJS from "exceljs";
+import { posmNames, validateNumericField, validateOptionField, validateSize } from "../domain/templateRules";
 import type { FeishuUser } from "./feishu";
 import {
+  campaigns,
   makeBatchId,
   makeMockLinks,
   makeTaskId,
@@ -98,55 +100,119 @@ export async function createTask(input: SingleSubmitInput): Promise<PosmTask> {
   return task;
 }
 
+export type BatchFileError = { type: "file"; message: string };
+
+const MAX_FILE_SIZE_MB = 10;
+const MAX_ROW_COUNT = 500;
+const EXPECTED_HEADERS = ["需求方", "Campaign", "POSM名称", "大区/城市/市场", "宽度 mm", "高度 mm", "备注"];
+
+export function validateBatchFileLevel(file: File): BatchFileError | null {
+  if (!file.name.endsWith(".xlsx")) return { type: "file", message: "仅支持 .xlsx 格式" };
+  if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) return { type: "file", message: `文件大小超过 ${MAX_FILE_SIZE_MB} MB 限制` };
+  return null;
+}
+
+function validateBatchRow(row: { campaign: string; posmName: string; region: string; width: string; height: string; remark: string }): string[] {
+  const errors: string[] = [];
+  errors.push(...validateOptionField(row.campaign, campaigns, "Campaign"));
+  errors.push(...validateOptionField(row.posmName, posmNames, "POSM 名称"));
+  errors.push(...validateOptionField(row.region, regions, "大区/城市/市场"));
+  errors.push(...validateNumericField(row.width, "宽度"));
+  errors.push(...validateNumericField(row.height, "高度"));
+  if (errors.length === 0) {
+    const sizeResult = validateSize(row.posmName, Number(row.width), Number(row.height));
+    errors.push(...sizeResult.errors);
+  }
+  if (row.remark && row.remark.length > 500) errors.push("备注超过 500 字");
+  return errors;
+}
+
 export async function validateBatchFile(file: File): Promise<BatchValidationRow[]> {
-  await latency(260);
-  if (!file.name.endsWith(".xlsx")) {
-    return [
-      {
-        rowNumber: 1,
-        campaign: "-",
-        posmName: "包柱: 80cm*200cm",
-        region: "-",
-        width: 0,
-        height: 0,
-        valid: false,
-        errors: ["请上传 .xlsx 格式的 Excel 模板"]
-      }
-    ];
+  const fileError = validateBatchFileLevel(file);
+  if (fileError) {
+    return [{ rowNumber: 1, campaign: "-", posmName: "包柱: 80cm*200cm", region: "-", width: 0, height: 0, remark: "", valid: false, errors: [fileError.message] }];
   }
 
-  return [
-    {
-      rowNumber: 2,
-      campaign: "夏季火锅主题",
-      posmName: "吊旗: 正反面 320mm*267mm",
-      region: regions[1],
-      width: 320,
-      height: 267,
-      valid: true,
-      errors: []
-    },
-    {
-      rowNumber: 3,
-      campaign: "新品铺市",
-      posmName: "包柱: 80cm*200cm",
-      region: regions[2],
-      width: 380,
-      height: 400,
-      valid: false,
-      errors: ["当前尺寸需与 POSM名称中的尺寸一致"]
-    },
-    {
-      rowNumber: 4,
-      campaign: "KA 门店端架",
-      posmName: "地堆简易版头卡 0.9m*0.6m",
-      region: regions[0],
-      width: 900,
-      height: 600,
-      valid: true,
-      errors: []
-    }
-  ];
+  const arrayBuffer = await file.arrayBuffer();
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(arrayBuffer);
+
+  const ws = wb.getWorksheet("批量提交") ?? wb.worksheets[0];
+  if (!ws) {
+    return [{ rowNumber: 1, campaign: "-", posmName: "包柱: 80cm*200cm", region: "-", width: 0, height: 0, remark: "", valid: false, errors: ["未找到有效工作表"] }];
+  }
+
+  const rowCount = ws.rowCount;
+  if (rowCount < 2) {
+    return [{ rowNumber: 1, campaign: "-", posmName: "包柱: 80cm*200cm", region: "-", width: 0, height: 0, remark: "", valid: false, errors: ["文件中无数据行"] }];
+  }
+
+  const dataRowCount = rowCount - 1;
+  if (dataRowCount > MAX_ROW_COUNT) {
+    return [{ rowNumber: 1, campaign: "-", posmName: "包柱: 80cm*200cm", region: "-", width: 0, height: 0, remark: "", valid: false, errors: [`数据行数超过 ${MAX_ROW_COUNT} 行限制（当前 ${dataRowCount} 行）`] }];
+  }
+
+  const results: BatchValidationRow[] = [];
+
+  for (let rowIdx = 2; rowIdx <= rowCount; rowIdx++) {
+    const row = ws.getRow(rowIdx);
+    const cellVal = (col: number) => {
+      const cell = row.getCell(col);
+      if (cell.value === null || cell.value === undefined) return "";
+      if (typeof cell.value === "object" && "result" in cell.value) {
+        return String(cell.value.result ?? "");
+      }
+      return String(cell.value);
+    };
+
+    const campaignVal = cellVal(2).trim();
+    const posmNameVal = cellVal(3).trim();
+    const regionVal = cellVal(4).trim();
+    const widthVal = cellVal(5).trim();
+    const heightVal = cellVal(6).trim();
+    const remarkVal = cellVal(7).trim();
+
+    const isEmpty = !campaignVal && !posmNameVal && !regionVal && !widthVal && !heightVal && !remarkVal;
+    if (isEmpty) continue;
+
+    const errors = validateBatchRow({
+      campaign: campaignVal,
+      posmName: posmNameVal,
+      region: regionVal,
+      width: widthVal,
+      height: heightVal,
+      remark: remarkVal
+    });
+
+    results.push({
+      rowNumber: rowIdx,
+      campaign: campaignVal || "-",
+      posmName: (posmNameVal || "-") as BatchValidationRow["posmName"],
+      region: regionVal || "-",
+      width: Number(widthVal) || 0,
+      height: Number(heightVal) || 0,
+      remark: remarkVal,
+      valid: errors.length === 0,
+      errors
+    });
+  }
+
+  if (results.length === 0) {
+    return [{ rowNumber: 1, campaign: "-", posmName: "包柱: 80cm*200cm", region: "-", width: 0, height: 0, remark: "", valid: false, errors: ["文件中无有效数据行（全部为空行）"] }];
+  }
+
+  return results;
+}
+
+export function generateErrorReport(rows: BatchValidationRow[]): Blob {
+  const errorRows = rows.filter((r) => !r.valid);
+  const csvLines = ["行号,Campaign,POSM名称,大区/城市/市场,宽度 mm,高度 mm,备注,错误原因"];
+  errorRows.forEach((row, i) => {
+    const remark = row.remark.replace(/"/g, '""');
+    const errors = row.errors.join("；").replace(/"/g, '""');
+    csvLines.push(`${i + 1},"${row.campaign}","${row.posmName}","${row.region}",${row.width},${row.height},"${remark}","${errors}"`);
+  });
+  return new Blob(["﻿" + csvLines.join("\n")], { type: "text/csv;charset=utf-8" });
 }
 
 export async function createBatchTasks(rows: BatchValidationRow[], requester: FeishuUser): Promise<{ batchId: string; batch: PosmBatch; tasks: PosmTask[] }> {

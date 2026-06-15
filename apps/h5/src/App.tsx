@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   ClipboardList,
   Clock3,
@@ -29,11 +30,14 @@ import { getSizePreset, posmNames, validateSize, type PosmName } from "./domain/
 import {
   createBatchTasks,
   createTask,
+  generateErrorReport,
   getBatch,
   getTask,
   listMyPosmRecords,
-  validateBatchFile
+  validateBatchFile,
+  validateBatchFileLevel
 } from "./services/api";
+import { downloadBatchTemplate } from "./services/excelTemplate";
 import { getCurrentFeishuUser, type FeishuUser } from "./services/feishu";
 import {
   campaigns,
@@ -424,14 +428,25 @@ function getSingleFormErrors(form: FormState, sizeErrors: string[]) {
 function BatchSubmit({ user }: { user: FeishuUser | null }) {
   const [rows, setRows] = useState<BatchValidationRow[]>([]);
   const [fileName, setFileName] = useState("");
+  const [fileError, setFileError] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
   const validCount = rows.filter((row) => row.valid).length;
+  const errorCount = rows.length - validCount;
 
   async function onFile(file: File | null) {
     if (!file) return;
     setFileName(file.name);
     setResult("");
+    setFileError("");
+    setRows([]);
+
+    const fileLevelError = validateBatchFileLevel(file);
+    if (fileLevelError) {
+      setFileError(fileLevelError.message);
+      return;
+    }
+
     setBusy(true);
     const nextRows = await validateBatchFile(file);
     setRows(nextRows);
@@ -447,10 +462,21 @@ function BatchSubmit({ user }: { user: FeishuUser | null }) {
     navigate("/tasks");
   }
 
+  function downloadErrorReport() {
+    const blob = generateErrorReport(rows);
+    const url = URL.createObjectURL(blob);
+    const baseName = fileName.replace(/\.xlsx$/i, "");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${baseName}_错误报告.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="batch-panel">
       <div className="batch-toolbar">
-        <button className="secondary-action" onClick={() => setResult("已下载 Excel 模板：LKK_POSM_Batch_Template.xlsx")}>
+        <button className="secondary-action" onClick={() => { downloadBatchTemplate(); setResult("已下载 Excel 模板：LKK_POSM_Batch_Template.xlsx"); setTimeout(() => setResult(""), 3000); }}>
           <Download size={17} />
           下载 Excel 模板
         </button>
@@ -464,13 +490,14 @@ function BatchSubmit({ user }: { user: FeishuUser | null }) {
         <FileSpreadsheet size={20} />
         <span>{fileName || "尚未上传文件"}</span>
       </div>
+      {fileError && <ValidationBox errors={[fileError]} />}
       {busy && <LoadingPanel label="校验批量文件" compact />}
       {rows.length > 0 && (
         <>
           <div className="batch-summary">
             <strong>{validCount}</strong>
             <span>行可提交</span>
-            <strong>{rows.length - validCount}</strong>
+            <strong>{errorCount}</strong>
             <span>行需修正</span>
           </div>
           <div className="table-wrap">
@@ -480,7 +507,9 @@ function BatchSubmit({ user }: { user: FeishuUser | null }) {
                   <th>行号</th>
                   <th>Campaign</th>
                   <th>POSM名称</th>
+                  <th>大区</th>
                   <th>尺寸</th>
+                  <th>备注</th>
                   <th>状态</th>
                 </tr>
               </thead>
@@ -490,16 +519,26 @@ function BatchSubmit({ user }: { user: FeishuUser | null }) {
                     <td>{row.rowNumber}</td>
                     <td>{row.campaign}</td>
                     <td>{row.posmName}</td>
+                    <td>{row.region}</td>
                     <td>{row.width} x {row.height} mm</td>
+                    <td className="cell-remark">{row.remark ? (row.remark.length > 20 ? row.remark.slice(0, 20) + "…" : row.remark) : "-"}</td>
                     <td className={row.valid ? "cell-ok" : "cell-error"}>{row.valid ? "通过" : row.errors.join("；")}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <button className="primary-action" disabled={!user || busy || validCount === 0} onClick={submitBatch}>
-            只提交通过行
-          </button>
+          <div className="batch-actions">
+            <button className="primary-action" disabled={!user || busy || validCount === 0} onClick={submitBatch}>
+              只提交通过行（{validCount} 条）
+            </button>
+            {errorCount > 0 && (
+              <button className="secondary-action" onClick={downloadErrorReport}>
+                <Download size={17} />
+                下载错误报告
+              </button>
+            )}
+          </div>
         </>
       )}
       {result && <p className="result-note">{result}</p>}
@@ -509,7 +548,6 @@ function BatchSubmit({ user }: { user: FeishuUser | null }) {
 
 function MyPosmPage({ user }: { user: FeishuUser | null }) {
   const [records, setRecords] = useState<PosmRecord[]>([]);
-  const [selectedBatchItems, setSelectedBatchItems] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<RecordStatusFilter>("all");
   const [campaignFilter, setCampaignFilter] = useState("all");
@@ -539,7 +577,7 @@ function MyPosmPage({ user }: { user: FeishuUser | null }) {
     <section className="posm-workspace">
       <div className="posm-titlebar">
         <div>
-          <SectionKicker icon={<ClipboardList size={16} />} title="我的 POSM" meta="单个直接展示，批量按组查看" />
+          <SectionKicker icon={<ClipboardList size={16} />} title="我的 POSM" meta="单个直接展示，批量折叠按组查看" />
           <h1>POSM 任务台账</h1>
         </div>
         <Button onClick={() => navigate("/submit")}>
@@ -574,19 +612,14 @@ function MyPosmPage({ user }: { user: FeishuUser | null }) {
             <strong>全部 POSM 记录</strong>
             <small>{loading ? "读取列表中" : `${filtered.length} 条记录，包含 ${allTasks.length} 条 POSM 明细`}</small>
           </div>
-          <small className="toolbar-note">批量记录在行内选择明细，右侧固定跳转飞书云盘</small>
+          <small className="toolbar-note">批量记录可展开查看明细，右侧跳转飞书云盘</small>
         </div>
         {loading ? (
           <LoadingPanel label="读取列表" compact />
         ) : records.length === 0 ? (
           <EmptyState title="暂无 POSM 记录" />
         ) : (
-          <PosmRecordTable
-            records={filtered}
-            selectedBatchItems={selectedBatchItems}
-            getPreferredTask={(record) => getPreferredTask(record, selectedBatchItems, taskFilter)}
-            onSelectBatchItem={(batchId, taskId) => setSelectedBatchItems((current) => ({ ...current, [batchId]: taskId }))}
-          />
+          <PosmRecordTable records={filtered} taskFilter={taskFilter} />
         )}
       </div>
     </section>
@@ -874,16 +907,146 @@ function FilterSelect({
 
 function PosmRecordTable({
   records,
-  selectedBatchItems,
-  getPreferredTask,
-  onSelectBatchItem
+  taskFilter
 }: {
   records: PosmRecord[];
-  selectedBatchItems: Record<string, string>;
-  getPreferredTask: (record: PosmRecord) => PosmTask;
-  onSelectBatchItem: (batchId: string, taskId: string) => void;
+  taskFilter: (task: PosmTask) => boolean;
 }) {
+  const [expandedBatches, setExpandedBatches] = useState<Record<string, boolean>>({});
+
+  const BATCH_COLORS = ["#D71920", "#2563EB", "#16A34A", "#9333EA", "#EA580C", "#0891B2"];
+  const batchColorMap = new Map<string, string>();
+  let colorIdx = 0;
+  for (const record of records) {
+    if (record.kind === "batch" && !batchColorMap.has(record.batch.batchId)) {
+      batchColorMap.set(record.batch.batchId, BATCH_COLORS[colorIdx % BATCH_COLORS.length]);
+      colorIdx++;
+    }
+  }
+
   if (!records.length) return <EmptyState title="没有符合条件的 POSM 记录" />;
+
+  function toggleBatch(batchId: string) {
+    setExpandedBatches((prev) => ({ ...prev, [batchId]: !prev[batchId] }));
+  }
+
+  function renderTaskRow(task: PosmTask, key: string, isBatchChild = false, batchColor?: string) {
+    return (
+      <TableRow key={key} className={isBatchChild ? "batch-child-row" : ""} style={isBatchChild ? { "--batch-color": batchColor } as React.CSSProperties : undefined}>
+        <TableCell className={isBatchChild ? "pl-8 text-[#2b1916]" : "font-semibold text-[#2b1916]"}>
+          {isBatchChild && <span className="batch-indent-bar" />}
+          <span className={isBatchChild ? "text-sm" : "block"}>{task.taskId}</span>
+        </TableCell>
+        <TableCell>
+          <Badge variant={isBatchChild ? "warning" : "secondary"}>
+            {isBatchChild ? "批量提交" : "单个提交"}
+          </Badge>
+        </TableCell>
+        <TableCell>
+          <span className="block font-medium">{task.requester.name}</span>
+          <span className="mt-1 block text-xs text-[#786a62]">{task.requester.department}</span>
+        </TableCell>
+        <TableCell className="font-medium">{task.campaign}</TableCell>
+        <TableCell><StatusBadge status={task.status} /></TableCell>
+        <TableCell>
+          <div className="grid min-w-[120px] gap-1">
+            <div className="flex items-center justify-between text-xs text-[#786a62]">
+              <span>{statusProgress(task.status)}%</span>
+            </div>
+            <Progress value={statusProgress(task.status)} />
+          </div>
+        </TableCell>
+        <TableCell>
+          <span className="line-clamp-2 font-medium">{task.posmName}</span>
+          {task.remark && <span className="mt-1 block truncate text-xs text-[#786a62]">{task.remark}</span>}
+        </TableCell>
+        <TableCell>
+          <span className="block">{task.width} x {task.height} mm</span>
+          <span className="mt-1 block text-xs text-[#786a62]">{task.ratio}:1</span>
+        </TableCell>
+        <TableCell>{task.region}</TableCell>
+        <TableCell><Badge variant="success">已确认</Badge></TableCell>
+        <TableCell>{formatDateTime(task.createdAt)}</TableCell>
+        <TableCell>{formatDateTime(task.updatedAt)}</TableCell>
+        <TableCell className="feishu-jump-cell">
+          <div className="feishu-jump-actions">
+            {task.cloudFolderUrl && (
+              <Button size="sm" asChild>
+                <a href={task.cloudFolderUrl} target="_blank" rel="noreferrer">
+                  <FolderOpen size={14} />
+                  飞书网盘
+                </a>
+              </Button>
+            )}
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  function renderBatchRow(record: Extract<PosmRecord, { kind: "batch" }>) {
+    const { batch } = record;
+    const isExpanded = expandedBatches[batch.batchId] ?? false;
+    const filteredItems = batch.items.filter(taskFilter);
+    const uniqueCampaigns = Array.from(new Set(filteredItems.map((i) => i.campaign))).join("、");
+    const campaignDisplay = uniqueCampaigns.length > 24 ? uniqueCampaigns.slice(0, 24) + "…" : uniqueCampaigns;
+
+    return (
+      <>
+        <TableRow key={batch.batchId} className="batch-summary-row cursor-pointer" onClick={() => toggleBatch(batch.batchId)}>
+          <TableCell className="font-semibold text-[#2b1916]">
+            <span className="flex items-center gap-1">
+              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <span>{batch.batchId}</span>
+            </span>
+            <span className="mt-1 block text-xs font-medium text-[#786a62]">{filteredItems.length === batch.totalCount ? `${batch.totalCount} 条 POSM` : `${filteredItems.length}/${batch.totalCount} 条 POSM`}</span>
+          </TableCell>
+          <TableCell>
+            <Badge variant="warning">批量提交</Badge>
+          </TableCell>
+          <TableCell>
+            <span className="block font-medium">{batch.requester.name}</span>
+            <span className="mt-1 block text-xs text-[#786a62]">{batch.requester.department}</span>
+          </TableCell>
+          <TableCell className="font-medium">
+            <span className="block">{campaignDisplay}</span>
+          </TableCell>
+          <TableCell><StatusBadge status={batch.status} /></TableCell>
+          <TableCell>
+            <div className="grid min-w-[120px] gap-1">
+              <div className="flex items-center justify-between text-xs text-[#786a62]">
+                <span>{Math.round((batch.doneCount / Math.max(batch.totalCount, 1)) * 100)}%</span>
+              </div>
+              <Progress value={Math.round((batch.doneCount / Math.max(batch.totalCount, 1)) * 100)} />
+            </div>
+          </TableCell>
+          <TableCell>
+            <span className="text-xs text-[#786a62]">{isExpanded ? "" : "点击展开查看详情"}</span>
+          </TableCell>
+          <TableCell>
+            <span className="text-xs text-[#786a62]">{isExpanded ? "" : "点击展开查看详情"}</span>
+          </TableCell>
+          <TableCell>-</TableCell>
+          <TableCell>-</TableCell>
+          <TableCell>{formatDateTime(batch.createdAt)}</TableCell>
+          <TableCell>{formatDateTime(batch.updatedAt)}</TableCell>
+          <TableCell className="feishu-jump-cell" onClick={(e) => e.stopPropagation()}>
+            <div className="feishu-jump-actions">
+              {batch.items[0]?.cloudFolderUrl && (
+                <Button size="sm" asChild>
+                  <a href={batch.items[0].cloudFolderUrl} target="_blank" rel="noreferrer">
+                    <FolderOpen size={14} />
+                    飞书网盘
+                  </a>
+                </Button>
+              )}
+            </div>
+          </TableCell>
+        </TableRow>
+        {isExpanded && filteredItems.map((task) => renderTaskRow(task, `${batch.batchId}-${task.taskId}`, true, batchColorMap.get(batch.batchId)))}
+      </>
+    );
+  }
 
   return (
     <div className="posm-data-table">
@@ -892,104 +1055,30 @@ function PosmRecordTable({
           <TableRow>
             <TableHead className="min-w-[168px]">记录 ID</TableHead>
             <TableHead className="min-w-[96px]">来源</TableHead>
-            <TableHead className="min-w-[240px]">批次明细</TableHead>
             <TableHead className="min-w-[130px]">需求方</TableHead>
             <TableHead className="min-w-[150px]">Campaign</TableHead>
+            <TableHead className="min-w-[120px]">状态</TableHead>
+            <TableHead className="min-w-[150px]">进度</TableHead>
             <TableHead className="min-w-[210px]">POSM名称</TableHead>
             <TableHead className="min-w-[130px]">尺寸 / 比例</TableHead>
             <TableHead className="min-w-[92px]">区域</TableHead>
             <TableHead className="min-w-[100px]">确认生成</TableHead>
-            <TableHead className="min-w-[120px]">状态</TableHead>
-            <TableHead className="min-w-[150px]">进度</TableHead>
             <TableHead className="min-w-[150px]">提交时间</TableHead>
             <TableHead className="min-w-[170px]">更新时间</TableHead>
-            <TableHead className="feishu-jump-header min-w-[250px] text-right">飞书跳转</TableHead>
+            <TableHead className="feishu-jump-header min-w-[160px] text-center">飞书跳转</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {records.map((record) => {
-            const task = getPreferredTask(record);
-            const isBatch = record.kind === "batch";
-            const recordId = isBatch ? record.batch.batchId : task.taskId;
-            return (
-            <TableRow key={recordId}>
-              <TableCell className="font-semibold text-[#2b1916]">
-                <span className="block">{recordId}</span>
-                <span className="mt-1 block text-xs font-medium text-[#786a62]">{isBatch ? `${record.batch.totalCount} 条 POSM` : task.taskId}</span>
-              </TableCell>
-              <TableCell>
-                <Badge variant={isBatch ? "warning" : "secondary"}>
-                  {isBatch ? "批量提交" : "单个提交"}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {isBatch ? (
-                  <BatchItemSelect
-                    batch={record.batch}
-                    value={selectedBatchItems[record.batch.batchId] ?? task.taskId}
-                    onValueChange={(taskId) => onSelectBatchItem(record.batch.batchId, taskId)}
-                  />
-                ) : (
-                  <span className="text-[#786a62]">{task.taskId}</span>
-                )}
-              </TableCell>
-              <TableCell>
-                <span className="block font-medium">{task.requester.name}</span>
-                <span className="mt-1 block text-xs text-[#786a62]">{task.requester.department}</span>
-              </TableCell>
-              <TableCell className="font-medium">{task.campaign}</TableCell>
-              <TableCell>
-                <span className="line-clamp-2 font-medium">{task.posmName}</span>
-                {task.remark && <span className="mt-1 block truncate text-xs text-[#786a62]">{task.remark}</span>}
-              </TableCell>
-              <TableCell>
-                <span className="block">{task.width} x {task.height} mm</span>
-                <span className="mt-1 block text-xs text-[#786a62]">{task.ratio}:1</span>
-              </TableCell>
-              <TableCell>{task.region}</TableCell>
-              <TableCell><Badge variant="success">已确认</Badge></TableCell>
-              <TableCell><StatusBadge status={task.status} /></TableCell>
-              <TableCell>
-                <div className="grid min-w-[120px] gap-1">
-                  <div className="flex items-center justify-between text-xs text-[#786a62]">
-                    <span>{statusProgress(task.status)}%</span>
-                  </div>
-                  <Progress value={statusProgress(task.status)} />
-                </div>
-              </TableCell>
-              <TableCell>{formatDateTime(task.createdAt)}</TableCell>
-              <TableCell>{formatDateTime(task.updatedAt)}</TableCell>
-              <TableCell className="feishu-jump-cell">
-                <div className="feishu-jump-actions">
-                  {task.cloudFolderUrl && (
-                    <Button size="sm" asChild>
-                      <a href={task.cloudFolderUrl} target="_blank" rel="noreferrer">
-                        <FolderOpen size={14} />
-                        飞书网盘
-                      </a>
-                    </Button>
-                  )}
-                  {task.pngPreviewUrl && (
-                    <Button variant="ghost" size="sm" asChild>
-                      <a href={task.pngPreviewUrl} target="_blank" rel="noreferrer">PNG</a>
-                    </Button>
-                  )}
-                  {task.svgUrl && (
-                    <Button variant="ghost" size="sm" asChild>
-                      <a href={task.svgUrl} target="_blank" rel="noreferrer">SVG</a>
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-            );
+            if (record.kind === "batch") return renderBatchRow(record);
+            return renderTaskRow(record.task, record.task.taskId);
           })}
         </TableBody>
       </Table>
       <div className="posm-card-list">
         {records.map((record) => {
-          const task = getPreferredTask(record);
           const isBatch = record.kind === "batch";
+          const task = isBatch ? record.batch.items[0] : record.task;
           return (
           <article className="posm-record-card" key={isBatch ? record.batch.batchId : task.taskId}>
             <span>
@@ -997,13 +1086,6 @@ function PosmRecordTable({
               <small>{isBatch ? `批量提交 · ${record.batch.totalCount} 条 POSM` : "单个提交"}</small>
             </span>
             <StatusBadge status={task.status} />
-            {isBatch && (
-              <BatchItemSelect
-                batch={record.batch}
-                value={selectedBatchItems[record.batch.batchId] ?? task.taskId}
-                onValueChange={(taskId) => onSelectBatchItem(record.batch.batchId, taskId)}
-              />
-            )}
             <span>
               <b>{task.campaign}</b>
               <small>{task.posmName} · {task.width} x {task.height} mm · {formatDateTime(task.createdAt)}</small>
@@ -1011,17 +1093,10 @@ function PosmRecordTable({
             <div className="posm-card-actions">
               {task.cloudFolderUrl && (
                 <Button size="sm" asChild>
-                  <a href={task.cloudFolderUrl} target="_blank" rel="noreferrer">飞书网盘</a>
-                </Button>
-              )}
-              {task.pngPreviewUrl && (
-                <Button variant="ghost" size="sm" asChild>
-                  <a href={task.pngPreviewUrl} target="_blank" rel="noreferrer">PNG</a>
-                </Button>
-              )}
-              {task.svgUrl && (
-                <Button variant="ghost" size="sm" asChild>
-                  <a href={task.svgUrl} target="_blank" rel="noreferrer">SVG</a>
+                  <a href={task.cloudFolderUrl} target="_blank" rel="noreferrer">
+                    <FolderOpen size={14} />
+                    飞书网盘
+                  </a>
                 </Button>
               )}
             </div>
@@ -1033,37 +1108,6 @@ function PosmRecordTable({
   );
 }
 
-function BatchItemSelect({
-  batch,
-  value,
-  onValueChange
-}: {
-  batch: PosmBatch;
-  value: string;
-  onValueChange: (taskId: string) => void;
-}) {
-  return (
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger className="batch-item-select">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {batch.items.map((item, index) => (
-          <SelectItem key={item.taskId} value={item.taskId}>
-            {index + 1}. {item.posmName}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function getPreferredTask(record: PosmRecord, selectedBatchItems: Record<string, string>, taskFilter: (task: PosmTask) => boolean) {
-  if (record.kind === "task") return record.task;
-  const selected = record.batch.items.find((item) => item.taskId === selectedBatchItems[record.batch.batchId]);
-  if (selected && taskFilter(selected)) return selected;
-  return record.batch.items.find(taskFilter) ?? selected ?? record.batch.items[0];
-}
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("zh-CN", {

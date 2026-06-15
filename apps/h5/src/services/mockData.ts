@@ -109,6 +109,7 @@ export type BatchValidationRow = {
   region: string;
   width: number;
   height: number;
+  remark: string;
   valid: boolean;
   errors: string[];
 };
