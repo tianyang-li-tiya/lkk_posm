@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { posmNames, validateNumericField, validateOptionField, validateSize } from "../domain/templateRules";
+import { getPosmValueByLabel, posmLabels, validateNumericField, validateOptionField, validateSize } from "../domain/templateRules";
 import type { FeishuUser } from "./feishu";
 import {
   campaigns,
@@ -7,7 +7,6 @@ import {
   makeMockLinks,
   makeTaskId,
   makeTrace,
-  regions,
   batchStore,
   taskStore,
   upsertBatch,
@@ -112,15 +111,15 @@ export function validateBatchFileLevel(file: File): BatchFileError | null {
   return null;
 }
 
-function validateBatchRow(row: { campaign: string; posmName: string; region: string; width: string; height: string; remark: string }): string[] {
+function validateBatchRow(row: { campaign: string; posmLabel: string; width: string; height: string; remark: string }): string[] {
   const errors: string[] = [];
   errors.push(...validateOptionField(row.campaign, campaigns, "Campaign"));
-  errors.push(...validateOptionField(row.posmName, posmNames, "POSM 名称"));
-  errors.push(...validateOptionField(row.region, regions, "大区/城市/市场"));
+  errors.push(...validateOptionField(row.posmLabel, posmLabels, "POSM 名称"));
   errors.push(...validateNumericField(row.width, "宽度"));
   errors.push(...validateNumericField(row.height, "高度"));
   if (errors.length === 0) {
-    const sizeResult = validateSize(row.posmName, Number(row.width), Number(row.height));
+    const posmValue = getPosmValueByLabel(row.posmLabel) ?? row.posmLabel;
+    const sizeResult = validateSize(posmValue, Number(row.width), Number(row.height));
     errors.push(...sizeResult.errors);
   }
   if (row.remark && row.remark.length > 500) errors.push("备注超过 500 字");
@@ -130,7 +129,7 @@ function validateBatchRow(row: { campaign: string; posmName: string; region: str
 export async function validateBatchFile(file: File): Promise<BatchValidationRow[]> {
   const fileError = validateBatchFileLevel(file);
   if (fileError) {
-    return [{ rowNumber: 1, campaign: "-", posmName: "包柱: 80cm*200cm", region: "-", width: 0, height: 0, remark: "", valid: false, errors: [fileError.message] }];
+    return [{ rowNumber: 1, campaign: "-", posmName: "-", width: 0, height: 0, remark: "", valid: false, errors: [fileError.message] }];
   }
 
   const arrayBuffer = await file.arrayBuffer();
@@ -139,17 +138,12 @@ export async function validateBatchFile(file: File): Promise<BatchValidationRow[
 
   const ws = wb.getWorksheet("批量提交") ?? wb.worksheets[0];
   if (!ws) {
-    return [{ rowNumber: 1, campaign: "-", posmName: "包柱: 80cm*200cm", region: "-", width: 0, height: 0, remark: "", valid: false, errors: ["未找到有效工作表"] }];
+    return [{ rowNumber: 1, campaign: "-", posmName: "-", width: 0, height: 0, remark: "", valid: false, errors: ["未找到有效工作表"] }];
   }
 
   const rowCount = ws.rowCount;
   if (rowCount < 2) {
-    return [{ rowNumber: 1, campaign: "-", posmName: "包柱: 80cm*200cm", region: "-", width: 0, height: 0, remark: "", valid: false, errors: ["文件中无数据行"] }];
-  }
-
-  const dataRowCount = rowCount - 1;
-  if (dataRowCount > MAX_ROW_COUNT) {
-    return [{ rowNumber: 1, campaign: "-", posmName: "包柱: 80cm*200cm", region: "-", width: 0, height: 0, remark: "", valid: false, errors: [`数据行数超过 ${MAX_ROW_COUNT} 行限制（当前 ${dataRowCount} 行）`] }];
+    return [{ rowNumber: 1, campaign: "-", posmName: "-", width: 0, height: 0, remark: "", valid: false, errors: ["文件中无数据行"] }];
   }
 
   const results: BatchValidationRow[] = [];
@@ -159,36 +153,41 @@ export async function validateBatchFile(file: File): Promise<BatchValidationRow[
     const cellVal = (col: number) => {
       const cell = row.getCell(col);
       if (cell.value === null || cell.value === undefined) return "";
-      if (typeof cell.value === "object" && "result" in cell.value) {
-        return String(cell.value.result ?? "");
+      if (typeof cell.value === "object") {
+        if ("result" in cell.value) return String(cell.value.result ?? "");
+        if ("formula" in cell.value) return "";
+        return "";
       }
       return String(cell.value);
     };
 
     const campaignVal = cellVal(2).trim();
     const posmNameVal = cellVal(3).trim();
-    const regionVal = cellVal(4).trim();
-    const widthVal = cellVal(5).trim();
-    const heightVal = cellVal(6).trim();
-    const remarkVal = cellVal(7).trim();
+    const widthVal = cellVal(4).trim();
+    const heightVal = cellVal(5).trim();
+    const remarkVal = cellVal(6).trim();
 
-    const isEmpty = !campaignVal && !posmNameVal && !regionVal && !widthVal && !heightVal && !remarkVal;
+    const isEmpty = !campaignVal && !posmNameVal && !widthVal && !heightVal && !remarkVal;
     if (isEmpty) continue;
+
+    if (results.length >= MAX_ROW_COUNT) {
+      return [{ rowNumber: 1, campaign: "-", posmName: "-", width: 0, height: 0, remark: "", valid: false, errors: [`数据行数超过 ${MAX_ROW_COUNT} 行限制`] }];
+    }
 
     const errors = validateBatchRow({
       campaign: campaignVal,
-      posmName: posmNameVal,
-      region: regionVal,
+      posmLabel: posmNameVal,
       width: widthVal,
       height: heightVal,
       remark: remarkVal
     });
 
+    const resolvedPosmName = getPosmValueByLabel(posmNameVal) ?? posmNameVal;
+
     results.push({
       rowNumber: rowIdx,
       campaign: campaignVal || "-",
-      posmName: (posmNameVal || "-") as BatchValidationRow["posmName"],
-      region: regionVal || "-",
+      posmName: (resolvedPosmName || "-") as BatchValidationRow["posmName"],
       width: Number(widthVal) || 0,
       height: Number(heightVal) || 0,
       remark: remarkVal,
@@ -198,7 +197,7 @@ export async function validateBatchFile(file: File): Promise<BatchValidationRow[
   }
 
   if (results.length === 0) {
-    return [{ rowNumber: 1, campaign: "-", posmName: "包柱: 80cm*200cm", region: "-", width: 0, height: 0, remark: "", valid: false, errors: ["文件中无有效数据行（全部为空行）"] }];
+    return [{ rowNumber: 1, campaign: "-", posmName: "-", width: 0, height: 0, remark: "", valid: false, errors: ["文件中无有效数据行（全部为空行）"] }];
   }
 
   return results;
@@ -206,11 +205,11 @@ export async function validateBatchFile(file: File): Promise<BatchValidationRow[
 
 export function generateErrorReport(rows: BatchValidationRow[]): Blob {
   const errorRows = rows.filter((r) => !r.valid);
-  const csvLines = ["行号,Campaign,POSM名称,大区/城市/市场,宽度 mm,高度 mm,备注,错误原因"];
+  const csvLines = ["行号,Campaign,POSM名称,宽度 mm,高度 mm,备注,错误原因"];
   errorRows.forEach((row, i) => {
     const remark = row.remark.replace(/"/g, '""');
     const errors = row.errors.join("；").replace(/"/g, '""');
-    csvLines.push(`${i + 1},"${row.campaign}","${row.posmName}","${row.region}",${row.width},${row.height},"${remark}","${errors}"`);
+    csvLines.push(`${i + 1},"${row.campaign}","${row.posmName}",${row.width},${row.height},"${remark}","${errors}"`);
   });
   return new Blob(["﻿" + csvLines.join("\n")], { type: "text/csv;charset=utf-8" });
 }
@@ -227,7 +226,6 @@ export async function createBatchTasks(rows: BatchValidationRow[], requester: Fe
       posmName: row.posmName,
       width: row.width,
       height: row.height,
-      region: row.region,
       requester,
       remark: `批量上传第 ${row.rowNumber} 行`
     });

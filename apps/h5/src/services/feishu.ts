@@ -3,6 +3,7 @@ export type FeishuUser = {
   userId: string;
   name: string;
   department: string;
+  email: string;
   roles: Array<"requester" | "reviewer" | "ops">;
 };
 
@@ -10,7 +11,8 @@ export const mockRequesterUser: FeishuUser = {
   openId: "ou_mock_lkk_requester",
   userId: "lkk_1024",
   name: "李天赐",
-  department: "LKK GTM / POSM",
+  department: "",
+  email: "tianci.li@lkk.com",
   roles: ["requester"]
 };
 
@@ -19,6 +21,7 @@ export const mockReviewerUser: FeishuUser = {
   userId: "lkk_james",
   name: "James Liu",
   department: "LKK Studio",
+  email: "james.liu@lkk.com",
   roles: ["reviewer"]
 };
 

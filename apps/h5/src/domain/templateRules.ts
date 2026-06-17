@@ -1,18 +1,63 @@
-export const posmNames = [
-  "包柱: 80cm*200cm",
-  "吊旗: 正反面 320mm*267mm",
-  "地贴. 1200mm*450mm",
-  "地堆围膜 100cm（宽）*80cm(高)",
-  "割箱背板",
-  "地堆尺寸延展围板1.5x0.8m(h)",
-  "地堆尺寸延展围板侧板1x0.8m(h)",
-  "地堆尺寸延展围板侧板1.5x0.8m(h)",
-  "买赠立牌（A3）正面",
-  "买赠立牌（A3）背面",
-  "地堆简易版头卡 0.9m*0.6m"
-] as const;
+export type PosmItem = {
+  label: string;
+  value: string;
+  width: number;
+  height: number;
+};
 
-export type PosmName = (typeof posmNames)[number];
+export type PosmCategory = {
+  category: string;
+  items: PosmItem[];
+};
+
+export const posmCatalog: PosmCategory[] = [
+  {
+    category: "KV",
+    items: [
+      { label: "KV-单人版 160×90mm", value: "KV-单人版", width: 160, height: 90 },
+      { label: "KV-双人版 160×90mm", value: "KV-双人版", width: 160, height: 90 },
+    ]
+  },
+  {
+    category: "端架",
+    items: [
+      { label: "端架头卡 1200×450mm", value: "端架头卡", width: 1200, height: 450 },
+      { label: "端架侧板 500×1800mm", value: "端架侧板", width: 500, height: 1800 },
+      { label: "端架货架插条 300×40mm", value: "端架货架插条", width: 300, height: 40 },
+    ]
+  },
+  {
+    category: "包柱",
+    items: [
+      { label: "包柱 800×2000mm", value: "包柱", width: 800, height: 2000 },
+    ]
+  },
+  {
+    category: "地贴",
+    items: [
+      { label: "地铁地贴 1200×450mm", value: "地铁地贴", width: 1200, height: 450 },
+    ]
+  },
+  {
+    category: "地堆",
+    items: [
+      { label: "地堆 1 1000×800mm", value: "地堆1", width: 1000, height: 800 },
+      { label: "地堆 2 1000×800mm", value: "地堆2", width: 1000, height: 800 },
+    ]
+  },
+];
+
+export const posmNames = posmCatalog.flatMap(c => c.items.map(i => i.value));
+export const posmLabels = posmCatalog.flatMap(c => c.items.map(i => i.label));
+
+export function getPosmValueByLabel(label: string): string | undefined {
+  for (const cat of posmCatalog) {
+    const item = cat.items.find(i => i.label === label);
+    if (item) return item.value;
+  }
+  return undefined;
+}
+export type PosmName = string;
 
 export type SizePreset = {
   width: number;
@@ -20,28 +65,27 @@ export type SizePreset = {
   source: "sheet-posm-name";
 };
 
+export function getSizePreset(posmName: string): SizePreset | undefined {
+  for (const cat of posmCatalog) {
+    const item = cat.items.find(i => i.value === posmName);
+    if (item) return { width: item.width, height: item.height, source: "sheet-posm-name" };
+  }
+  return undefined;
+}
+
+export function getPosmLabel(posmName: string): string {
+  for (const cat of posmCatalog) {
+    const item = cat.items.find(i => i.value === posmName);
+    if (item) return item.label;
+  }
+  return posmName;
+}
+
 export type ValidationResult = {
   valid: boolean;
   errors: string[];
   ratio: number | null;
 };
-
-const sizePresets: Partial<Record<PosmName, SizePreset>> = {
-  "包柱: 80cm*200cm": { width: 800, height: 2000, source: "sheet-posm-name" },
-  "吊旗: 正反面 320mm*267mm": { width: 320, height: 267, source: "sheet-posm-name" },
-  "地贴. 1200mm*450mm": { width: 1200, height: 450, source: "sheet-posm-name" },
-  "地堆围膜 100cm（宽）*80cm(高)": { width: 1000, height: 800, source: "sheet-posm-name" },
-  "地堆尺寸延展围板1.5x0.8m(h)": { width: 1500, height: 800, source: "sheet-posm-name" },
-  "地堆尺寸延展围板侧板1x0.8m(h)": { width: 1000, height: 800, source: "sheet-posm-name" },
-  "地堆尺寸延展围板侧板1.5x0.8m(h)": { width: 1500, height: 800, source: "sheet-posm-name" },
-  "买赠立牌（A3）正面": { width: 297, height: 420, source: "sheet-posm-name" },
-  "买赠立牌（A3）背面": { width: 297, height: 420, source: "sheet-posm-name" },
-  "地堆简易版头卡 0.9m*0.6m": { width: 900, height: 600, source: "sheet-posm-name" }
-};
-
-export function getSizePreset(posmName: string): SizePreset | undefined {
-  return sizePresets[posmName as PosmName];
-}
 
 const RATIO_TOLERANCE = 0.15;
 

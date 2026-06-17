@@ -54,7 +54,6 @@ export type PosmTask = {
   posmName: PosmName;
   width: number;
   height: number;
-  region: string;
   requester: FeishuUser;
   remark: string;
   status: TaskStatus;
@@ -95,7 +94,6 @@ export type CreateTaskInput = {
   posmName: PosmName;
   width: number;
   height: number;
-  region: string;
   requester: FeishuUser;
   remark: string;
   submissionType?: SubmissionType;
@@ -106,7 +104,6 @@ export type BatchValidationRow = {
   rowNumber: number;
   campaign: string;
   posmName: PosmName;
-  region: string;
   width: number;
   height: number;
   remark: string;
@@ -114,8 +111,7 @@ export type BatchValidationRow = {
   errors: string[];
 };
 
-export const campaigns = ["2026 酱料陈列升级", "夏季火锅主题", "KA 门店端架", "新品铺市"];
-export const regions = ["华东大区", "华南大区", "华北大区", "西南大区"];
+export const campaigns = ["RT-中秋POSM"];
 
 const requester = getMockRequesterUser();
 
@@ -156,7 +152,7 @@ export function statusLabel(status: TaskStatus) {
     submitted: "已提交",
     generating: "生成中",
     generation_failed: "生成失败",
-    reviewing: "待 Base 审核",
+    reviewing: "待审核",
     rejected: "审核拒绝",
     manual_fixing: "人工修正中",
     approved: "已通过",
@@ -238,7 +234,7 @@ function seedTask(partial: Omit<CreateTaskInput, "requester"> & {
     notifiedRequester: partial.notifiedRequester ?? partial.status === "notified",
     baseRecordId: links.baseRecordId,
     pngPreviewUrl: partial.status === "generating" ? undefined : links.pngPreviewUrl,
-    cloudFolderUrl: partial.status === "generating" ? undefined : links.cloudFolderUrl,
+    cloudFolderUrl: links.cloudFolderUrl,
     svgUrl: partial.status === "generating" ? undefined : links.svgUrl,
     trace: [
       makeTrace({
@@ -270,13 +266,12 @@ function seedTask(partial: Omit<CreateTaskInput, "requester"> & {
 seedTask({
   taskId: "POSM-20260614-0831",
   submissionType: "single",
-  campaign: "2026 酱料陈列升级",
-  posmName: "包柱: 80cm*200cm",
-  width: 800,
-  height: 2000,
-  region: "华东大区",
+  campaign: "RT-中秋POSM",
+  posmName: "端架头卡",
+  width: 1200,
+  height: 450,
   remark: "门店端架使用，需保留品牌红和促销价签位。",
-  status: "reviewing",
+  status: "generating",
   createdAt: "2026-06-14T08:31:00+08:00",
   updatedAt: "2026-06-14T11:20:00+08:00"
 });
@@ -285,41 +280,37 @@ seedTask({
   taskId: "POSM-20260613-2194",
   batchId: "BATCH-20260613-128",
   submissionType: "batch",
-  campaign: "夏季火锅主题",
-  posmName: "吊旗: 正反面 320mm*267mm",
-  width: 320,
-  height: 267,
-  region: "华南大区",
+  campaign: "RT-中秋POSM",
+  posmName: "地堆1",
+  width: 1000,
+  height: 800,
   remark: "批量上传第 2 行。",
-  status: "manual_fixing",
-  reviewComment: "门店售价露出不够清晰，需人工替换一版。",
+  status: "reviewing",
   createdAt: "2026-06-13T10:12:00+08:00",
-  updatedAt: "2026-06-14T15:40:00+08:00"
+  updatedAt: "2026-06-13T10:12:00+08:00"
 });
 
 seedTask({
   taskId: "POSM-20260613-7821",
   batchId: "BATCH-20260613-128",
   submissionType: "batch",
-  campaign: "夏季火锅主题",
-  posmName: "地贴. 1200mm*450mm",
+  campaign: "RT-中秋POSM",
+  posmName: "地铁地贴",
   width: 1200,
   height: 450,
-  region: "华南大区",
   remark: "批量上传第 4 行。",
-  status: "reviewing",
+  status: "generation_failed",
   createdAt: "2026-06-13T10:12:00+08:00",
-  updatedAt: "2026-06-13T17:30:00+08:00"
+  updatedAt: "2026-06-13T10:12:00+08:00"
 });
 
 seedTask({
   taskId: "POSM-20260610-6672",
   submissionType: "single",
-  campaign: "KA 门店端架",
-  posmName: "地堆简易版头卡 0.9m*0.6m",
-  width: 900,
-  height: 600,
-  region: "华北大区",
+  campaign: "RT-中秋POSM",
+  posmName: "包柱",
+  width: 800,
+  height: 2000,
   remark: "已完成并通知门店团队。",
   status: "notified",
   notifiedRequester: true,

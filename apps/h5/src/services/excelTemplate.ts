@@ -1,12 +1,11 @@
 import ExcelJS from "exceljs";
-import { getSizePreset, posmNames } from "../domain/templateRules";
-import { campaigns, regions } from "./mockData";
+import { posmCatalog, posmLabels } from "../domain/templateRules";
+import { campaigns } from "./mockData";
 
 const HEADERS = [
   "行号",
   "Campaign",
   "POSM名称",
-  "大区/城市/市场",
   "宽度 mm",
   "高度 mm",
   "备注"
@@ -14,12 +13,11 @@ const HEADERS = [
 
 const SAMPLE_ROW = [
   1,
-  "2026 酱料陈列升级",
-  "吊旗: 正反面 320mm*267mm",
-  "华东大区",
-  320,
-  267,
-  "KA 陈列用，需突出促销价格信息，配合端架使用。"
+  "RT-中秋POSM",
+  "端架头卡 1200×450mm",
+  1200,
+  450,
+  "门店端架使用，需保留品牌红和促销价签位。"
 ];
 
 export async function downloadBatchTemplate() {
@@ -32,12 +30,12 @@ export async function downloadBatchTemplate() {
   refWs.getCell(1, 1).value = "POSM名称";
   refWs.getCell(1, 2).value = "宽度";
   refWs.getCell(1, 3).value = "高度";
-  posmNames.forEach((name, i) => {
+  const allItems = posmCatalog.flatMap(c => c.items);
+  allItems.forEach((item, i) => {
     const row = i + 2;
-    refWs.getCell(row, 1).value = name;
-    const preset = getSizePreset(name);
-    refWs.getCell(row, 2).value = preset?.width ?? "";
-    refWs.getCell(row, 3).value = preset?.height ?? "";
+    refWs.getCell(row, 1).value = item.label;
+    refWs.getCell(row, 2).value = item.width;
+    refWs.getCell(row, 3).value = item.height;
   });
 
   const ws = wb.addWorksheet("批量提交", {
@@ -48,7 +46,6 @@ export async function downloadBatchTemplate() {
     { width: 8 },
     { width: 24 },
     { width: 32 },
-    { width: 20 },
     { width: 14 },
     { width: 14 },
     { width: 40 }
@@ -69,20 +66,19 @@ export async function downloadBatchTemplate() {
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFF00" } };
   });
 
-  const refRange = `'参考数据'!$A$2:$C$${posmNames.length + 1}`;
+  const refRange = `'参考数据'!$A$2:$C$${allItems.length + 1}`;
 
   for (let row = 3; row <= 502; row++) {
     ws.getCell(row, 1).value = { formula: `IF(B${row}="","",ROW()-1)` } as ExcelJS.CellFormulaValue;
     ws.getCell(row, 1).font = { color: { argb: "FF999999" } };
     ws.getCell(row, 1).alignment = { horizontal: "center" };
 
-    ws.getCell(row, 5).value = { formula: `IF(C${row}="","",IFERROR(VLOOKUP(C${row},${refRange},2,FALSE),""))` } as ExcelJS.CellFormulaValue;
-    ws.getCell(row, 6).value = { formula: `IF(C${row}="","",IFERROR(VLOOKUP(C${row},${refRange},3,FALSE),""))` } as ExcelJS.CellFormulaValue;
+    ws.getCell(row, 4).value = { formula: `IF(C${row}="","",IFERROR(VLOOKUP(C${row},${refRange},2,FALSE),""))` } as ExcelJS.CellFormulaValue;
+    ws.getCell(row, 5).value = { formula: `IF(C${row}="","",IFERROR(VLOOKUP(C${row},${refRange},3,FALSE),""))` } as ExcelJS.CellFormulaValue;
   }
 
   const campaignList = `"${campaigns.join(",")}"`;
-  const posmList = `"${[...posmNames].join(",")}"`;
-  const regionList = `"${regions.join(",")}"`;
+  const posmList = `"${posmLabels.join(",")}"`;
 
   for (let row = 2; row <= 502; row++) {
     ws.getCell(row, 2).dataValidation = {
@@ -104,15 +100,6 @@ export async function downloadBatchTemplate() {
     };
 
     ws.getCell(row, 4).dataValidation = {
-      type: "list",
-      allowBlank: false,
-      formulae: [regionList],
-      showErrorMessage: true,
-      errorTitle: "无效值",
-      error: "请从下拉列表中选择大区/城市/市场"
-    };
-
-    ws.getCell(row, 5).dataValidation = {
       type: "decimal",
       operator: "greaterThan",
       allowBlank: true,
@@ -122,7 +109,7 @@ export async function downloadBatchTemplate() {
       error: "宽度必须为正数"
     };
 
-    ws.getCell(row, 6).dataValidation = {
+    ws.getCell(row, 5).dataValidation = {
       type: "decimal",
       operator: "greaterThan",
       allowBlank: true,

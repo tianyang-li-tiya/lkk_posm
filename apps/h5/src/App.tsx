@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
   AlertTriangle,
+  CalendarIcon,
+  Camera,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -9,24 +11,31 @@ import {
   Clock3,
   Download,
   ExternalLink,
+  FileCheck,
   FileSpreadsheet,
+  FileText,
   FolderOpen,
   Home,
+  Image,
   Loader2,
-  LogOut,
+  Maximize2,
   PenLine,
+  Ruler,
   Send,
-  Settings,
+  ShieldCheck,
   Upload,
   UserRound,
   XCircle
 } from "lucide-react";
+import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getSizePreset, posmNames, validateSize, type PosmName } from "./domain/templateRules";
+import { getSizePreset, getPosmLabel, posmCatalog, posmNames, validateSize } from "./domain/templateRules";
 import {
   createBatchTasks,
   createTask,
@@ -38,10 +47,10 @@ import {
   validateBatchFileLevel
 } from "./services/api";
 import { downloadBatchTemplate } from "./services/excelTemplate";
+import logoImg from "./assets/logo.png";
 import { getCurrentFeishuUser, type FeishuUser } from "./services/feishu";
 import {
   campaigns,
-  regions,
   statusLabel,
   statusProgress,
   type BatchValidationRow,
@@ -60,8 +69,6 @@ type Route =
 
 type SubmitMode = "single" | "batch";
 type RecordStatusFilter = "all" | "active" | "reviewing" | "manual_fixing" | "rejected" | "notified" | "exception";
-type ProgressFilter = "all" | "lt50" | "50to80" | "gte80";
-type TimeFilter = "all" | "today" | "7d" | "30d";
 type BreadcrumbItem = {
   label: string;
   path?: string;
@@ -69,10 +76,9 @@ type BreadcrumbItem = {
 
 type FormState = {
   campaign: string;
-  posmName: "" | PosmName;
+  posmName: string;
   width: string;
   height: string;
-  region: string;
   remark: string;
 };
 
@@ -81,7 +87,6 @@ const emptyForm: FormState = {
   posmName: "",
   width: "",
   height: "",
-  region: "",
   remark: ""
 };
 
@@ -103,7 +108,6 @@ function navigate(path: string) {
 export function App() {
   const [route, setRoute] = useState<Route>(parseRoute);
   const [user, setUser] = useState<FeishuUser | null>(null);
-  const [signedOut, setSignedOut] = useState(false);
 
   useEffect(() => {
     const syncRoute = () => setRoute(parseRoute());
@@ -119,49 +123,26 @@ export function App() {
   }, [route.name]);
 
   useEffect(() => {
-    if (signedOut) return;
     getCurrentFeishuUser("requester").then(setUser);
-  }, [route.name, signedOut]);
-
-  function logout() {
-    setSignedOut(true);
-    setUser(null);
-    navigate("/");
-  }
-
-  function loginAgain() {
-    setSignedOut(false);
-  }
+  }, [route.name]);
 
   return (
     <main className="app-shell">
-      <Header route={route} user={user} signedOut={signedOut} onLogout={logout} onLogin={loginAgain} />
-      {!signedOut && <Breadcrumb route={route} />}
-      {signedOut ? (
-        <SignedOutPage onLogin={loginAgain} />
-      ) : (
-        <>
-          {route.name === "home" && <HomePage user={user} />}
-          {route.name === "submit" && <SubmitPage user={user} />}
-          {route.name === "tasks" && <MyPosmPage user={user} />}
-        </>
-      )}
+      <Header route={route} user={user} />
+      {route.name !== "home" && route.name !== "tasks" && route.name !== "submit" && <Breadcrumb route={route} />}
+      {route.name === "home" && <HomePage user={user} />}
+      {route.name === "submit" && <SubmitPage user={user} />}
+      {route.name === "tasks" && <MyPosmPage user={user} />}
     </main>
   );
 }
 
 function Header({
   route,
-  user,
-  signedOut,
-  onLogout,
-  onLogin
+  user
 }: {
   route: Route;
   user: FeishuUser | null;
-  signedOut: boolean;
-  onLogout: () => void;
-  onLogin: () => void;
 }) {
   const active = route.name;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -169,9 +150,9 @@ function Header({
   return (
     <header className="topbar">
       <button className="brand-mark" onClick={() => navigate("/")} aria-label="返回工作台">
-        <span className="brand-seal">LKK</span>
+        <img src={logoImg} alt="LKK" className="brand-logo" />
         <span>
-          <strong>LKK POSM</strong>
+          <strong>LKK POSM 生成器</strong>
         </span>
       </button>
 
@@ -186,8 +167,7 @@ function Header({
           <span className="identity-avatar">
             <UserRound size={16} />
           </span>
-          <span>{signedOut ? "未登录" : user?.name?.slice(0, 1) ?? "识别中"}</span>
-          <Settings size={15} />
+          <span>{user?.name ?? "识别中"}</span>
         </button>
         {menuOpen && (
           <div className="user-popover" role="menu">
@@ -196,18 +176,10 @@ function Header({
                 <UserRound size={16} />
               </span>
               <div>
-                <strong>{signedOut ? "未登录" : user?.name ?? "飞书身份识别中"}</strong>
-                <small>{signedOut ? "身份已退出" : user ? `${user.department} · 需求方` : "等待飞书免登"}</small>
+                <strong>{user?.name ?? "识别中"}</strong>
+                <small>{user?.email ?? ""}</small>
               </div>
             </div>
-            {signedOut ? (
-              <button className="popover-action" onClick={onLogin}>重新进入</button>
-            ) : (
-              <button className="popover-action danger" onClick={onLogout} disabled={!user}>
-                <LogOut size={15} />
-                退出登录
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -260,78 +232,126 @@ function NavButton({ active, icon, label, path }: { active: boolean; icon: React
 function HomePage({ user }: { user: FeishuUser | null }) {
   void user;
   return (
-    <section className="home-layout">
-      <div className="workbench-hero">
-        <div className="hero-copy">
-          <p className="eyebrow">LKK POSM</p>
-          <h1>POSM 生成需求管理</h1>
-          <p>提交单个或批量 POSM 需求，跟踪生成、Base 审核和交付通知状态。生成文件存放在飞书云盘，审核流转以飞书多维表格为准。</p>
+    <section className="home-layout-v2">
+      <div className="hero-v2">
+        <div className="hero-v2-dot-grid" aria-hidden="true" />
+        <svg className="hero-v2-wave" aria-hidden="true" viewBox="0 0 1200 120" preserveAspectRatio="none">
+          <path d="M0,60 C200,100 400,20 600,60 C800,100 1000,20 1200,60 L1200,120 L0,120 Z" fill="rgba(255,255,255,0.06)" />
+          <path d="M0,80 C300,110 500,50 700,80 C900,110 1100,50 1200,80 L1200,120 L0,120 Z" fill="rgba(255,255,255,0.04)" />
+        </svg>
+        <div className="hero-v2-arc" aria-hidden="true" />
+        <div className="hero-v2-content">
+          <div className="hero-v2-copy">
+            <p className="eyebrow">LEE KUM KEE</p>
+            <h1>POSM 生成需求管理</h1>
+            <p className="hero-v2-desc">提交单个或批量 POSM 需求，跟踪生成、Base 审核和交付通知状态。</p>
+            <p className="hero-v2-desc">生成文件存放在飞书云盘，审核流转以飞书多维表格为准。</p>
+          </div>
+          <div className="hero-v2-illustration" aria-hidden="true">
+            <div className="hero-illust-doc doc-back">
+              <div className="doc-line" /><div className="doc-line" /><div className="doc-line short" />
+            </div>
+            <div className="hero-illust-doc doc-front">
+              <div className="doc-corner" />
+              <div className="doc-line" /><div className="doc-line" /><div className="doc-line short" /><div className="doc-line" />
+            </div>
+            <div className="hero-illust-badge">
+              <CheckCircle2 size={22} />
+            </div>
+            <div className="hero-illust-sparkle">✦</div>
+          </div>
         </div>
       </div>
 
-      <div className="entry-grid">
-        <EntryCard
-          icon={<Send size={22} />}
-          title="提交需求"
-          desc="单个表单提交，或通过 Excel 模板批量提交。"
-          action="进入提交"
-          onClick={() => navigate("/submit")}
-        />
-        <EntryCard
-          icon={<ClipboardList size={22} />}
-          title="我的 POSM"
-          desc="查看全部提交记录，并用状态筛选进行中、异常和已完成结果。"
-          action="查看 POSM"
-          onClick={() => navigate("/tasks")}
-        />
+      <div className="entry-grid-v2">
+        <button className="entry-card-v2" onClick={() => navigate("/submit")}>
+          <span className="entry-icon-v2 entry-icon-red"><Send size={20} /></span>
+          <strong>提交需求</strong>
+          <small>单个表单提交，或通过 Excel 模板批量提交。</small>
+          <span className="entry-btn entry-btn-red">进入提交 <ChevronRight size={15} /></span>
+        </button>
+        <button className="entry-card-v2" onClick={() => navigate("/tasks")}>
+          <span className="entry-icon-v2 entry-icon-gold"><ClipboardList size={20} /></span>
+          <strong>我的 POSM</strong>
+          <small>查看全部提交记录，并用状态筛选进行中、异常和已完成结果。</small>
+          <span className="entry-btn entry-btn-gold">查看 POSM <ChevronRight size={15} /></span>
+        </button>
       </div>
     </section>
   );
 }
 
-function SignedOutPage({ onLogin }: { onLogin: () => void }) {
-  return (
-    <section className="signed-out-panel">
-      <div className="panel solo-panel">
-        <UserRound size={34} />
-        <span>已退出当前飞书身份</span>
-        <p>原型环境不会调用真实飞书退出接口；重新进入会恢复 mock 飞书免登身份。</p>
-        <button className="primary-action fit" onClick={onLogin}>重新进入工作台</button>
-      </div>
-    </section>
-  );
-}
 
-function EntryCard({ icon, title, desc, action, onClick }: { icon: ReactNode; title: string; desc: string; action: string; onClick: () => void }) {
-  return (
-    <button className="entry-card" onClick={onClick}>
-      <span className="entry-icon">{icon}</span>
-      <strong>{title}</strong>
-      <small>{desc}</small>
-      <span className="entry-action">
-        {action}
-        <ChevronRight size={16} />
-      </span>
-    </button>
-  );
-}
 
 function SubmitPage({ user }: { user: FeishuUser | null }) {
   const [mode, setMode] = useState<SubmitMode>("single");
 
   return (
-    <section className="submit-page">
-      <div className="panel form-panel">
-        <SectionKicker icon={<Send size={16} />} title="提交需求" meta={user ? `${user.name} · ${user.department}` : "飞书用户识别中"} />
-        <SegmentedControl
-          value={mode}
-          options={[
-            { value: "single", label: "单个提交", icon: <PenLine size={15} /> },
-            { value: "batch", label: "批量提交", icon: <FileSpreadsheet size={15} /> }
-          ]}
-          onChange={setMode}
-        />
-        {mode === "single" ? <SingleSubmitForm user={user} /> : <BatchSubmit user={user} />}
+    <section className="submit-page-v2">
+      <div className="submit-banner-card">
+        <div className="submit-banner-left">
+          <div className="submit-banner-icon">
+            <Send size={24} />
+          </div>
+          <div className="submit-banner-text">
+            <h2>提交需求</h2>
+            <p>{user ? (user.department ? `${user.name} · ${user.department}` : user.name) : "飞书用户识别中"}</p>
+          </div>
+        </div>
+        <div className="submit-banner-tabs">
+          <SegmentedControl
+            value={mode}
+            options={[
+              { value: "single", label: "单个提交", icon: <PenLine size={15} /> },
+              { value: "batch", label: "批量提交", icon: <FileSpreadsheet size={15} /> }
+            ]}
+            onChange={setMode}
+          />
+        </div>
+        <div className="submit-banner-illustration">
+          <div className="illustration-stack">
+            <div className="illustration-photo photo-1"><Image size={20} /></div>
+            <div className="illustration-photo photo-2"><Image size={16} /></div>
+            <div className="illustration-photo photo-3"><Image size={14} /></div>
+            <div className="illustration-camera"><Camera size={18} /></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="submit-two-col">
+        <div className="submit-main-col">
+          <div className="submit-form-card">
+            {mode === "single" ? <SingleSubmitForm user={user} /> : <BatchSubmit user={user} />}
+          </div>
+        </div>
+        <aside className="submit-sidebar">
+          <div className="submit-notice-card">
+            <h3><ShieldCheck size={18} /> 提交须知</h3>
+            <ul className="notice-list">
+              <li>
+                <span className="notice-icon"><Ruler size={16} /></span>
+                <div>
+                  <strong>尺寸信息</strong>
+                  <p>请准确填写 POSM 的宽度和高度（单位：mm），以便我们更好地处理。</p>
+                </div>
+              </li>
+              <li>
+                <span className="notice-icon"><FileText size={16} /></span>
+                <div>
+                  <strong>文件格式</strong>
+                  <p>仅支持批量上传Excel表单，单个文件大小不超过20MB。</p>
+                </div>
+              </li>
+              <li>
+                <span className="notice-icon"><FileCheck size={16} /></span>
+                <div>
+                  <strong>审核流程</strong>
+                  <p>提交后我们会尽快审核，审核结果将在"我的 POSM"中查看。</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </aside>
       </div>
     </section>
   );
@@ -350,10 +370,10 @@ function SingleSubmitForm({ user }: { user: FeishuUser | null }) {
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     if (key === "posmName") {
-      const preset = getSizePreset(value);
+      const preset = getSizePreset(value as string);
       setForm((current) => ({
         ...current,
-        posmName: value as PosmName,
+        posmName: value as string,
         width: preset ? String(preset.width) : "",
         height: preset ? String(preset.height) : ""
       }));
@@ -370,10 +390,9 @@ function SingleSubmitForm({ user }: { user: FeishuUser | null }) {
     try {
       const task = await createTask({
         campaign: form.campaign,
-        posmName: form.posmName as PosmName,
+        posmName: form.posmName,
         width,
         height,
-        region: form.region,
         requester: user,
         remark: form.remark
       });
@@ -389,24 +408,21 @@ function SingleSubmitForm({ user }: { user: FeishuUser | null }) {
   return (
     <div className="submit-form">
       <div className="field-grid">
-        <ReadonlyField label="需求方" value={user ? `${user.name} / ${user.department}` : "飞书用户识别中"} />
-        <SelectField label="Campaign" value={form.campaign} onChange={(value) => update("campaign", value)} options={campaigns} placeholder="请选择 Campaign" />
-        <SelectField
-          label="POSM名称"
+        <ReadonlyField label="需求方" value={user ? (user.department ? `${user.name} / ${user.department}` : user.name) : "飞书用户识别中"} />
+        <CustomSelect label="Campaign" value={form.campaign} onChange={(value) => update("campaign", value)} options={campaigns} placeholder="请选择 Campaign" />
+        <PosmCascadeSelect
           value={form.posmName}
-          onChange={(value) => update("posmName", value as PosmName)}
-          options={[...posmNames]}
-          placeholder="请选择 POSM名称"
+          onChange={(value) => update("posmName", value)}
         />
-        <SelectField label="大区/城市/市场" value={form.region} onChange={(value) => update("region", value)} options={regions} placeholder="请选择大区/城市/市场" />
         <InputField label="宽度 mm" value={form.width} onChange={(value) => update("width", value)} inputMode="numeric" placeholder="输入宽度" />
         <InputField label="高度 mm" value={form.height} onChange={(value) => update("height", value)} inputMode="numeric" placeholder="输入高度" />
       </div>
+
       <TextAreaField label="备注" value={form.remark} onChange={(value) => update("remark", value)} placeholder="选填，不超过 500 字" />
       {touched && errors.length > 0 && <ValidationBox errors={errors} />}
       {sizeValidation?.valid && <ValidationBox errors={[]} message={`尺寸校验通过 · 比例 ${sizeValidation.ratio}:1`} />}
       {error && <p className="inline-error">{error}</p>}
-      <button className="primary-action" disabled={!user || busy} onClick={submit}>
+      <button className="primary-action submit-btn" disabled={!user || busy} onClick={submit}>
         {busy ? <Loader2 className="spin" size={18} /> : <Send size={18} />}
         提交需求
       </button>
@@ -418,7 +434,6 @@ function getSingleFormErrors(form: FormState, sizeErrors: string[]) {
   const errors: string[] = [];
   if (!form.campaign) errors.push("请选择 Campaign");
   if (!form.posmName) errors.push("请选择 POSM名称");
-  if (!form.region) errors.push("请选择大区/城市/市场");
   if (!form.width) errors.push("请输入宽度");
   if (!form.height) errors.push("请输入高度");
   if (form.remark.length > 500) errors.push("备注不能超过 500 字");
@@ -507,7 +522,6 @@ function BatchSubmit({ user }: { user: FeishuUser | null }) {
                   <th>行号</th>
                   <th>Campaign</th>
                   <th>POSM名称</th>
-                  <th>大区</th>
                   <th>尺寸</th>
                   <th>备注</th>
                   <th>状态</th>
@@ -518,8 +532,7 @@ function BatchSubmit({ user }: { user: FeishuUser | null }) {
                   <tr key={row.rowNumber}>
                     <td>{row.rowNumber}</td>
                     <td>{row.campaign}</td>
-                    <td>{row.posmName}</td>
-                    <td>{row.region}</td>
+                    <td>{getPosmLabel(row.posmName)}</td>
                     <td>{row.width} x {row.height} mm</td>
                     <td className="cell-remark">{row.remark ? (row.remark.length > 20 ? row.remark.slice(0, 20) + "…" : row.remark) : "-"}</td>
                     <td className={row.valid ? "cell-ok" : "cell-error"}>{row.valid ? "通过" : row.errors.join("；")}</td>
@@ -551,8 +564,8 @@ function MyPosmPage({ user }: { user: FeishuUser | null }) {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<RecordStatusFilter>("all");
   const [campaignFilter, setCampaignFilter] = useState("all");
-  const [progressFilter, setProgressFilter] = useState<ProgressFilter>("all");
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [posmTypeFilter, setPosmTypeFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (!user) return;
@@ -567,44 +580,50 @@ function MyPosmPage({ user }: { user: FeishuUser | null }) {
   const taskFilter = (task: PosmTask) =>
     recordMatchesFilter(task.status, statusFilter) &&
     (campaignFilter === "all" || task.campaign === campaignFilter) &&
-    progressMatchesFilter(statusProgress(task.status), progressFilter) &&
-    timeMatchesFilter(task.createdAt, timeFilter);
+    (posmTypeFilter === "all" || posmMatchesType(task.posmName, posmTypeFilter)) &&
+    dateMatchesFilter(task.createdAt, dateFilter);
   const filtered = records.filter((record) => (record.kind === "batch" ? record.batch.items.some(taskFilter) : taskFilter(record.task)));
-  const stats = getRecordStats(allTasks);
   const campaignOptions = Array.from(new Set(allTasks.map((task) => task.campaign)));
 
   return (
     <section className="posm-workspace">
-      <div className="posm-titlebar">
-        <div>
-          <SectionKicker icon={<ClipboardList size={16} />} title="我的 POSM" meta="单个直接展示，批量折叠按组查看" />
-          <h1>POSM 任务台账</h1>
+      <div className="posm-titlebar-v2">
+        <svg className="posm-titlebar-wave" aria-hidden="true" viewBox="0 0 1200 80" preserveAspectRatio="none">
+          <path d="M0,40 C200,70 400,10 600,40 C800,70 1000,10 1200,40 L1200,80 L0,80 Z" fill="rgba(229,37,33,0.06)" />
+          <path d="M0,55 C300,75 500,30 700,55 C900,75 1100,30 1200,55 L1200,80 L0,80 Z" fill="rgba(229,37,33,0.04)" />
+        </svg>
+        <div className="posm-titlebar-content">
+          <div className="posm-titlebar-left">
+            <SectionKicker icon={<ClipboardList size={16} />} title="我的 POSM" meta="单个直接展示，批量折叠按组查看" />
+            <h1>POSM 任务台账</h1>
+          </div>
+          <div className="posm-titlebar-illust" aria-hidden="true">
+            <div className="posm-illust-doc">
+              <div className="doc-line" /><div className="doc-line" /><div className="doc-line short" />
+            </div>
+            <div className="posm-illust-badge">LKK</div>
+            <div className="posm-illust-coin"><Send size={14} /></div>
+          </div>
+          <Button onClick={() => navigate("/submit")}>
+            <Send size={16} />
+            新建需求
+          </Button>
         </div>
-        <Button onClick={() => navigate("/submit")}>
-          <Send size={16} />
-          新建需求
-        </Button>
       </div>
 
       <div className="panel posm-main">
-        <div className="posm-summary" aria-label="POSM 状态摘要">
-          <span>全部 {stats.all}</span>
-          <span>进行中 {stats.active}</span>
-          <span>待审核 {stats.reviewing}</span>
-          <span>异常 {stats.exception}</span>
-          <span>已通知 {stats.notified}</span>
-        </div>
         <div className="posm-filterbar">
           <RecordFilters
             status={statusFilter}
             campaign={campaignFilter}
-            progress={progressFilter}
-            time={timeFilter}
+            posmType={posmTypeFilter}
+            date={dateFilter}
             campaigns={campaignOptions}
+            taskDates={allTasks.map((t) => t.createdAt)}
             onStatusChange={setStatusFilter}
             onCampaignChange={setCampaignFilter}
-            onProgressChange={setProgressFilter}
-            onTimeChange={setTimeFilter}
+            onPosmTypeChange={setPosmTypeFilter}
+            onDateChange={setDateFilter}
           />
         </div>
         <div className="posm-main-toolbar">
@@ -612,7 +631,6 @@ function MyPosmPage({ user }: { user: FeishuUser | null }) {
             <strong>全部 POSM 记录</strong>
             <small>{loading ? "读取列表中" : `${filtered.length} 条记录，包含 ${allTasks.length} 条 POSM 明细`}</small>
           </div>
-          <small className="toolbar-note">批量记录可展开查看明细，右侧跳转飞书云盘</small>
         </div>
         {loading ? (
           <LoadingPanel label="读取列表" compact />
@@ -626,20 +644,6 @@ function MyPosmPage({ user }: { user: FeishuUser | null }) {
   );
 }
 
-function getRecordStats(tasks: PosmTask[]) {
-  return tasks.reduce(
-    (stats, record) => {
-      stats.all += 1;
-      if (recordMatchesFilter(record.status, "active")) stats.active += 1;
-      if (record.status === "reviewing") stats.reviewing += 1;
-      if (record.status === "manual_fixing") stats.manualFixing += 1;
-      if (recordMatchesFilter(record.status, "exception")) stats.exception += 1;
-      if (record.status === "notified") stats.notified += 1;
-      return stats;
-    },
-    { all: 0, active: 0, reviewing: 0, manualFixing: 0, exception: 0, notified: 0 }
-  );
-}
 
 function recordMatchesFilter(status: TaskStatus, filter: RecordStatusFilter) {
   if (filter === "all") return true;
@@ -648,25 +652,16 @@ function recordMatchesFilter(status: TaskStatus, filter: RecordStatusFilter) {
   return status === filter;
 }
 
-function progressMatchesFilter(progress: number, filter: ProgressFilter) {
-  if (filter === "all") return true;
-  if (filter === "lt50") return progress < 50;
-  if (filter === "50to80") return progress >= 50 && progress < 80;
-  return progress >= 80;
+function posmMatchesType(posmName: string, category: string): boolean {
+  const cat = posmCatalog.find(c => c.category === category);
+  if (!cat) return false;
+  return cat.items.some(i => i.value === posmName);
 }
 
-function timeMatchesFilter(value: string, filter: TimeFilter) {
-  if (filter === "all") return true;
-  const createdAt = new Date(value).getTime();
-  const now = Date.now();
-  if (Number.isNaN(createdAt)) return false;
-  if (filter === "today") {
-    const created = new Date(value);
-    const today = new Date();
-    return created.getFullYear() === today.getFullYear() && created.getMonth() === today.getMonth() && created.getDate() === today.getDate();
-  }
-  const days = filter === "7d" ? 7 : 30;
-  return now - createdAt <= days * 24 * 60 * 60 * 1000;
+function dateMatchesFilter(value: string, date: Date | undefined): boolean {
+  if (!date) return true;
+  const created = new Date(value);
+  return created.getFullYear() === date.getFullYear() && created.getMonth() === date.getMonth() && created.getDate() === date.getDate();
 }
 
 function TaskDetailPage({ taskId }: { taskId: string }) {
@@ -706,7 +701,7 @@ function BatchDetailPage({ batchId }: { batchId: string }) {
         <SectionKicker icon={<FileSpreadsheet size={16} />} title="批量提交详情" meta={batch.batchId} />
         <BatchStatusHero batch={batch} />
         <div className="info-grid">
-          <Fact label="需求方" value={`${batch.requester.name} / ${batch.requester.department}`} />
+          <Fact label="需求方" value={batch.requester.department ? `${batch.requester.name} / ${batch.requester.department}` : batch.requester.name} />
           <Fact label="明细数量" value={`${batch.totalCount} 条`} />
           <Fact label="已通知取用" value={`${batch.doneCount} 条`} />
           <Fact label="异常/拒绝" value={`${batch.failedCount} 条`} />
@@ -768,7 +763,7 @@ function BatchStatusHero({ batch }: { batch: PosmBatch }) {
         <h1>{batch.batchId}</h1>
         <p>批次下每条 POSM 独立同步 Base 审核状态和通知取用</p>
       </div>
-      <div className="progress-ring" style={{ background: `conic-gradient(#D71920 ${Math.round((batch.doneCount / Math.max(batch.totalCount, 1)) * 100)}%, #F1E5DE 0)` }}>
+      <div className="progress-ring" style={{ background: `conic-gradient(#E02923 ${Math.round((batch.doneCount / Math.max(batch.totalCount, 1)) * 100)}%, #FFE0A0 0)` }}>
         <span>{batch.doneCount}/{batch.totalCount}</span>
       </div>
     </div>
@@ -784,7 +779,6 @@ function BatchItemsTable({ batch }: { batch: PosmBatch }) {
             <th>明细任务</th>
             <th>POSM名称</th>
             <th>尺寸</th>
-            <th>区域</th>
             <th>状态</th>
             <th>操作</th>
           </tr>
@@ -793,9 +787,8 @@ function BatchItemsTable({ batch }: { batch: PosmBatch }) {
           {batch.items.map((item) => (
             <tr key={item.taskId}>
               <td><strong>{item.taskId}</strong><small>{item.campaign}</small></td>
-              <td>{item.posmName}</td>
+              <td>{getPosmLabel(item.posmName)}</td>
               <td>{item.width} x {item.height} mm</td>
-              <td>{item.region}</td>
               <td><StatusPill status={item.status} /></td>
               <td>
                 <button className="text-action" onClick={() => navigate(`/tasks/${item.taskId}`)}>
@@ -814,69 +807,154 @@ function BatchItemsTable({ batch }: { batch: PosmBatch }) {
 function RecordFilters({
   status,
   campaign,
-  progress,
-  time,
+  posmType,
+  date,
   campaigns: campaignOptions,
+  taskDates,
   onStatusChange,
   onCampaignChange,
-  onProgressChange,
-  onTimeChange
+  onPosmTypeChange,
+  onDateChange
 }: {
   status: RecordStatusFilter;
   campaign: string;
-  progress: ProgressFilter;
-  time: TimeFilter;
+  posmType: string;
+  date: Date | undefined;
   campaigns: string[];
+  taskDates: string[];
   onStatusChange: (value: RecordStatusFilter) => void;
   onCampaignChange: (value: string) => void;
-  onProgressChange: (value: ProgressFilter) => void;
-  onTimeChange: (value: TimeFilter) => void;
+  onPosmTypeChange: (value: string) => void;
+  onDateChange: (value: Date | undefined) => void;
 }) {
   const statusFilters: Array<[RecordStatusFilter, string]> = [
     ["all", "全部"],
     ["active", "进行中"],
-    ["reviewing", "待 Base 审核"],
-    ["manual_fixing", "人工修正中"],
-    ["rejected", "审核拒绝"],
+    ["reviewing", "待审核"],
     ["notified", "已通知取用"],
     ["exception", "异常"]
-  ];
-  const progressFilters: Array<[ProgressFilter, string]> = [
-    ["all", "全部进度"],
-    ["lt50", "低于 50%"],
-    ["50to80", "50%-80%"],
-    ["gte80", "80% 以上"]
-  ];
-  const timeFilters: Array<[TimeFilter, string]> = [
-    ["all", "全部时间"],
-    ["today", "今天提交"],
-    ["7d", "近 7 天"],
-    ["30d", "近 30 天"]
   ];
 
   return (
     <div className="shadcn-filter-grid">
-      <FilterSelect label="提交时间" value={time} onValueChange={(value) => onTimeChange(value as TimeFilter)}>
-        {timeFilters.map(([key, label]) => (
-          <SelectItem key={key} value={key}>{label}</SelectItem>
-        ))}
-      </FilterSelect>
+      <DatePickerFilter date={date} onDateChange={onDateChange} taskDates={taskDates} />
       <FilterSelect label="Campaign" value={campaign} onValueChange={onCampaignChange}>
         <SelectItem value="all">全部 Campaign</SelectItem>
         {campaignOptions.map((item) => (
           <SelectItem key={item} value={item}>{item}</SelectItem>
         ))}
       </FilterSelect>
-      <FilterSelect label="POSM 状态" value={status} onValueChange={(value) => onStatusChange(value as RecordStatusFilter)}>
+      <FilterSelect label="状态" value={status} onValueChange={(value) => onStatusChange(value as RecordStatusFilter)}>
         {statusFilters.map(([key, label]) => (
           <SelectItem key={key} value={key}>{label}</SelectItem>
         ))}
       </FilterSelect>
-      <FilterSelect label="进度" value={progress} onValueChange={(value) => onProgressChange(value as ProgressFilter)}>
-        {progressFilters.map(([key, label]) => (
-          <SelectItem key={key} value={key}>{label}</SelectItem>
+      <FilterSelect label="POSM 类型" value={posmType} onValueChange={onPosmTypeChange}>
+        <SelectItem value="all">全部类型</SelectItem>
+        {posmCatalog.map((cat) => (
+          <SelectItem key={cat.category} value={cat.category}>{cat.category}</SelectItem>
         ))}
       </FilterSelect>
+    </div>
+  );
+}
+
+function parseChineseDate(input: string): Date | undefined {
+  const trimmed = input.trim();
+  if (!trimmed) return undefined;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (trimmed === "今天") return today;
+  if (trimmed === "昨天") { const d = new Date(today); d.setDate(d.getDate() - 1); return d; }
+  if (trimmed === "前天") { const d = new Date(today); d.setDate(d.getDate() - 2); return d; }
+  if (trimmed === "明天") { const d = new Date(today); d.setDate(d.getDate() + 1); return d; }
+  if (trimmed === "后天") { const d = new Date(today); d.setDate(d.getDate() + 2); return d; }
+
+  const daysAgo = trimmed.match(/^(\d+)\s*天前$/);
+  if (daysAgo) { const d = new Date(today); d.setDate(d.getDate() - parseInt(daysAgo[1])); return d; }
+  const daysLater = trimmed.match(/^(\d+)\s*天后$/);
+  if (daysLater) { const d = new Date(today); d.setDate(d.getDate() + parseInt(daysLater[1])); return d; }
+
+  const weeksAgo = trimmed.match(/^(\d+)\s*周前$/);
+  if (weeksAgo) { const d = new Date(today); d.setDate(d.getDate() - parseInt(weeksAgo[1]) * 7); return d; }
+
+  if (trimmed === "上周") { const d = new Date(today); d.setDate(d.getDate() - 7); return d; }
+  if (trimmed === "上个月" || trimmed === "上月") { const d = new Date(today); d.setMonth(d.getMonth() - 1); return d; }
+  if (trimmed === "本月初") { return new Date(today.getFullYear(), today.getMonth(), 1); }
+
+  const monthDay = trimmed.match(/^(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?$/);
+  if (monthDay) return new Date(today.getFullYear(), parseInt(monthDay[1]) - 1, parseInt(monthDay[2]));
+
+  const fullDate = trimmed.match(/^(\d{4})\s*[年/-]\s*(\d{1,2})\s*[月/-]\s*(\d{1,2})\s*[日号]?$/);
+  if (fullDate) return new Date(parseInt(fullDate[1]), parseInt(fullDate[2]) - 1, parseInt(fullDate[3]));
+
+  const slashDate = trimmed.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  if (slashDate) return new Date(parseInt(slashDate[1]), parseInt(slashDate[2]) - 1, parseInt(slashDate[3]));
+
+  return undefined;
+}
+
+function DatePickerFilter({ date, onDateChange, taskDates }: { date: Date | undefined; onDateChange: (d: Date | undefined) => void; taskDates: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(date ? format(date, "yyyy-MM-dd") : "");
+
+  const datesWithData = taskDates.map((d) => {
+    const dt = new Date(d);
+    return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  });
+
+  return (
+    <div className="filter-field">
+      <label className="filter-label">提交时间</label>
+      <div className="date-picker-input-group">
+        <input
+          className="date-picker-input"
+          value={inputValue}
+          placeholder="今天、3天前、6月1日..."
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            const parsed = parseChineseDate(e.target.value);
+            if (parsed) {
+              onDateChange(parsed);
+            } else if (!e.target.value.trim()) {
+              onDateChange(undefined);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setOpen(true);
+            }
+          }}
+        />
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <button className="date-picker-icon-btn" aria-label="选择日期">
+              <CalendarIcon size={16} />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto overflow-hidden p-0" align="end" sideOffset={8}>
+            <Calendar
+              mode="single"
+              selected={date}
+              defaultMonth={date}
+              modifiers={{ hasData: datesWithData }}
+              modifiersClassNames={{ hasData: "rdp-has-data" }}
+              onSelect={(d) => {
+                onDateChange(d);
+                setInputValue(d ? format(d, "yyyy-MM-dd") : "");
+                setOpen(false);
+              }}
+            />
+            {date && (
+              <button className="date-picker-clear" onClick={() => { onDateChange(undefined); setInputValue(""); setOpen(false); }}>
+                清除筛选
+              </button>
+            )}
+          </PopoverContent>
+        </Popover>
+      </div>
     </div>
   );
 }
@@ -896,7 +974,7 @@ function FilterSelect({
     <label className="shadcn-filter-field">
       <span>{label}</span>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger>
+        <SelectTrigger className={value === "all" ? "text-[#7A6A61]" : ""}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>{children}</SelectContent>
@@ -914,7 +992,7 @@ function PosmRecordTable({
 }) {
   const [expandedBatches, setExpandedBatches] = useState<Record<string, boolean>>({});
 
-  const BATCH_COLORS = ["#D71920", "#2563EB", "#16A34A", "#9333EA", "#EA580C", "#0891B2"];
+  const BATCH_COLORS = ["#E02923", "#2563EB", "#16A34A", "#9333EA", "#EA580C", "#0891B2"];
   const batchColorMap = new Map<string, string>();
   let colorIdx = 0;
   for (const record of records) {
@@ -933,38 +1011,29 @@ function PosmRecordTable({
   function renderTaskRow(task: PosmTask, key: string, isBatchChild = false, batchColor?: string) {
     return (
       <TableRow key={key} className={isBatchChild ? "batch-child-row" : ""} style={isBatchChild ? { "--batch-color": batchColor } as React.CSSProperties : undefined}>
-        <TableCell className={isBatchChild ? "pl-8 text-[#2b1916]" : "font-semibold text-[#2b1916]"}>
+        <TableCell className={isBatchChild ? "pl-8 text-[#3d2017]" : "font-semibold text-[#3d2017]"}>
           {isBatchChild && <span className="batch-indent-bar" />}
           <span className={isBatchChild ? "text-sm" : "block"}>{task.taskId}</span>
         </TableCell>
         <TableCell>
-          <Badge variant={isBatchChild ? "warning" : "secondary"}>
+          <Badge variant={isBatchChild ? "batch" : "secondary"}>
             {isBatchChild ? "批量提交" : "单个提交"}
           </Badge>
         </TableCell>
         <TableCell>
           <span className="block font-medium">{task.requester.name}</span>
-          <span className="mt-1 block text-xs text-[#786a62]">{task.requester.department}</span>
+          <span className="mt-1 block text-xs text-[#8a6e5a]">{task.requester.department}</span>
         </TableCell>
-        <TableCell className="font-medium">{task.campaign}</TableCell>
         <TableCell><StatusBadge status={task.status} /></TableCell>
+        <TableCell className="font-medium">{task.campaign}</TableCell>
         <TableCell>
-          <div className="grid min-w-[120px] gap-1">
-            <div className="flex items-center justify-between text-xs text-[#786a62]">
-              <span>{statusProgress(task.status)}%</span>
-            </div>
-            <Progress value={statusProgress(task.status)} />
-          </div>
-        </TableCell>
-        <TableCell>
-          <span className="line-clamp-2 font-medium">{task.posmName}</span>
-          {task.remark && <span className="mt-1 block truncate text-xs text-[#786a62]">{task.remark}</span>}
+          <span className="line-clamp-2 font-medium">{getPosmLabel(task.posmName)}</span>
+          {task.remark && <span className="mt-1 block truncate text-xs text-[#8a6e5a]">{task.remark}</span>}
         </TableCell>
         <TableCell>
           <span className="block">{task.width} x {task.height} mm</span>
-          <span className="mt-1 block text-xs text-[#786a62]">{task.ratio}:1</span>
+          <span className="mt-1 block text-xs text-[#8a6e5a]">{task.ratio}:1</span>
         </TableCell>
-        <TableCell>{task.region}</TableCell>
         <TableCell><Badge variant="success">已确认</Badge></TableCell>
         <TableCell>{formatDateTime(task.createdAt)}</TableCell>
         <TableCell>{formatDateTime(task.updatedAt)}</TableCell>
@@ -986,7 +1055,7 @@ function PosmRecordTable({
 
   function renderBatchRow(record: Extract<PosmRecord, { kind: "batch" }>) {
     const { batch } = record;
-    const isExpanded = expandedBatches[batch.batchId] ?? false;
+    const isExpanded = expandedBatches[batch.batchId] ?? true;
     const filteredItems = batch.items.filter(taskFilter);
     const uniqueCampaigns = Array.from(new Set(filteredItems.map((i) => i.campaign))).join("、");
     const campaignDisplay = uniqueCampaigns.length > 24 ? uniqueCampaigns.slice(0, 24) + "…" : uniqueCampaigns;
@@ -994,39 +1063,32 @@ function PosmRecordTable({
     return (
       <>
         <TableRow key={batch.batchId} className="batch-summary-row cursor-pointer" onClick={() => toggleBatch(batch.batchId)}>
-          <TableCell className="font-semibold text-[#2b1916]">
+          <TableCell className="font-semibold text-[#3d2017]">
             <span className="flex items-center gap-1">
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               <span>{batch.batchId}</span>
             </span>
-            <span className="mt-1 block text-xs font-medium text-[#786a62]">{filteredItems.length === batch.totalCount ? `${batch.totalCount} 条 POSM` : `${filteredItems.length}/${batch.totalCount} 条 POSM`}</span>
+            <span className="mt-1 block text-xs font-medium text-[#8a6e5a]">{filteredItems.length === batch.totalCount ? `${batch.totalCount} 条 POSM` : `${filteredItems.length}/${batch.totalCount} 条 POSM`}</span>
           </TableCell>
           <TableCell>
-            <Badge variant="warning">批量提交</Badge>
+            <Badge variant="batch">批量提交</Badge>
           </TableCell>
           <TableCell>
             <span className="block font-medium">{batch.requester.name}</span>
-            <span className="mt-1 block text-xs text-[#786a62]">{batch.requester.department}</span>
+            <span className="mt-1 block text-xs text-[#8a6e5a]">{batch.requester.department}</span>
+          </TableCell>
+          <TableCell>
+            <span className="text-xs text-[#8a6e5a]">{isExpanded ? "" : "展开查看详情"}</span>
           </TableCell>
           <TableCell className="font-medium">
             <span className="block">{campaignDisplay}</span>
           </TableCell>
-          <TableCell><StatusBadge status={batch.status} /></TableCell>
           <TableCell>
-            <div className="grid min-w-[120px] gap-1">
-              <div className="flex items-center justify-between text-xs text-[#786a62]">
-                <span>{Math.round((batch.doneCount / Math.max(batch.totalCount, 1)) * 100)}%</span>
-              </div>
-              <Progress value={Math.round((batch.doneCount / Math.max(batch.totalCount, 1)) * 100)} />
-            </div>
+            <span className="text-xs text-[#8a6e5a]">{isExpanded ? "" : "展开查看详情"}</span>
           </TableCell>
           <TableCell>
-            <span className="text-xs text-[#786a62]">{isExpanded ? "" : "点击展开查看详情"}</span>
+            <span className="text-xs text-[#8a6e5a]">{isExpanded ? "" : "展开查看详情"}</span>
           </TableCell>
-          <TableCell>
-            <span className="text-xs text-[#786a62]">{isExpanded ? "" : "点击展开查看详情"}</span>
-          </TableCell>
-          <TableCell>-</TableCell>
           <TableCell>-</TableCell>
           <TableCell>{formatDateTime(batch.createdAt)}</TableCell>
           <TableCell>{formatDateTime(batch.updatedAt)}</TableCell>
@@ -1053,15 +1115,13 @@ function PosmRecordTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[168px]">记录 ID</TableHead>
-            <TableHead className="min-w-[96px]">来源</TableHead>
-            <TableHead className="min-w-[130px]">需求方</TableHead>
-            <TableHead className="min-w-[150px]">Campaign</TableHead>
+            <TableHead className="min-w-[168px] record-id-tip">记录 ID</TableHead>
+            <TableHead className="min-w-[90px]">来源</TableHead>
+            <TableHead className="min-w-[100px]">需求方</TableHead>
             <TableHead className="min-w-[120px]">状态</TableHead>
-            <TableHead className="min-w-[150px]">进度</TableHead>
+            <TableHead className="min-w-[150px]">Campaign</TableHead>
             <TableHead className="min-w-[210px]">POSM名称</TableHead>
             <TableHead className="min-w-[130px]">尺寸 / 比例</TableHead>
-            <TableHead className="min-w-[92px]">区域</TableHead>
             <TableHead className="min-w-[100px]">确认生成</TableHead>
             <TableHead className="min-w-[150px]">提交时间</TableHead>
             <TableHead className="min-w-[170px]">更新时间</TableHead>
@@ -1080,27 +1140,27 @@ function PosmRecordTable({
           const isBatch = record.kind === "batch";
           const task = isBatch ? record.batch.items[0] : record.task;
           return (
-          <article className="posm-record-card" key={isBatch ? record.batch.batchId : task.taskId}>
-            <span>
-              <strong>{isBatch ? record.batch.batchId : task.taskId}</strong>
-              <small>{isBatch ? `批量提交 · ${record.batch.totalCount} 条 POSM` : "单个提交"}</small>
-            </span>
-            <StatusBadge status={task.status} />
-            <span>
-              <b>{task.campaign}</b>
-              <small>{task.posmName} · {task.width} x {task.height} mm · {formatDateTime(task.createdAt)}</small>
-            </span>
-            <div className="posm-card-actions">
-              {task.cloudFolderUrl && (
-                <Button size="sm" asChild>
-                  <a href={task.cloudFolderUrl} target="_blank" rel="noreferrer">
-                    <FolderOpen size={14} />
-                    飞书网盘
-                  </a>
-                </Button>
-              )}
-            </div>
-          </article>
+            <article className="posm-record-card" key={isBatch ? record.batch.batchId : task.taskId}>
+              <span>
+                <strong>{isBatch ? record.batch.batchId : task.taskId}</strong>
+                <small>{isBatch ? `批量提交 · ${record.batch.totalCount} 条 POSM` : "单个提交"}</small>
+              </span>
+              <StatusBadge status={task.status} />
+              <span>
+                <b>{task.campaign}</b>
+                <small>{getPosmLabel(task.posmName)} · {task.width} x {task.height} mm · {formatDateTime(task.createdAt)}</small>
+              </span>
+              <div className="posm-card-actions">
+                {task.cloudFolderUrl && (
+                  <Button size="sm" asChild>
+                    <a href={task.cloudFolderUrl} target="_blank" rel="noreferrer">
+                      <FolderOpen size={14} />
+                      飞书网盘
+                    </a>
+                  </Button>
+                )}
+              </div>
+            </article>
           );
         })}
       </div>
@@ -1118,26 +1178,31 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+function statusCategoryLabel(status: TaskStatus): string {
+  if (status === "reviewing") return "待审核";
+  if (status === "notified") return "已通知取用";
+  if (status === "generation_failed" || status === "notification_failed" || status === "rejected") return "异常";
+  return "进行中";
+}
+
+function statusCategoryKey(status: TaskStatus): string {
+  if (status === "reviewing") return "reviewing";
+  if (status === "notified") return "notified";
+  if (status === "generation_failed" || status === "notification_failed" || status === "rejected") return "exception";
+  return "active";
+}
+
 function StatusBadge({ status }: { status: TaskStatus }) {
-  const variant =
-    status === "notified" || status === "approved"
-      ? "success"
-      : status === "reviewing" || status === "manual_fixing"
-        ? "warning"
-        : status === "generation_failed" || status === "notification_failed" || status === "rejected"
-          ? "danger"
-          : "secondary";
-  return <Badge variant={variant}>{statusLabel(status)}</Badge>;
+  return <span className={`status-badge status-badge--${statusCategoryKey(status)}`}>{statusCategoryLabel(status)}</span>;
 }
 
 function InfoGrid({ task }: { task: PosmTask }) {
   return (
     <div className="info-grid">
-      <Fact label="需求方" value={`${task.requester.name} / ${task.requester.department}`} />
+      <Fact label="需求方" value={task.requester.department ? `${task.requester.name} / ${task.requester.department}` : task.requester.name} />
       <Fact label="Campaign" value={task.campaign} />
-      <Fact label="POSM名称" value={task.posmName} />
+      <Fact label="POSM名称" value={getPosmLabel(task.posmName)} />
       <Fact label="尺寸" value={`${task.width} x ${task.height} mm`} />
-      <Fact label="大区/城市/市场" value={task.region} />
       <Fact label="Base 审核人" value={task.reviewer} />
       <Fact label="Base 记录" value={task.baseRecordId} />
     </div>
@@ -1161,7 +1226,7 @@ function ResultBlock({ task }: { task: PosmTask }) {
       <div className="generated-preview" aria-label="生成后 POSM 预览">
         <span>PNG Preview</span>
         <strong>{task.campaign}</strong>
-        <small>{task.posmName} · {task.region}</small>
+        <small>{getPosmLabel(task.posmName)}</small>
       </div>
       <div className="result-links">
         <a href={task.cloudFolderUrl} target="_blank" rel="noreferrer">
@@ -1187,7 +1252,7 @@ function StatusHero({ task }: { task: PosmTask }) {
         <h1>{task.taskId}</h1>
         <p>{task.notifiedRequester ? "已通知需求方取用" : "James 在飞书多维表格中通过云盘链接审核，Base 放行前不会通知需求方"}</p>
       </div>
-      <div className="progress-ring" style={{ background: `conic-gradient(#D71920 ${statusProgress(task.status)}%, #F1E5DE 0)` }}>
+      <div className="progress-ring" style={{ background: `conic-gradient(#E02923 ${statusProgress(task.status)}%, #FFE0A0 0)` }}>
         <span>{statusProgress(task.status)}%</span>
       </div>
     </div>
@@ -1273,6 +1338,113 @@ function SectionKicker({ icon, title, meta }: { icon: ReactNode; title: string; 
         <p>{meta}</p>
       </div>
     </div>
+  );
+}
+
+function CustomSelect({ label, value, options, placeholder, onChange }: { label: string; value: string; options: string[]; placeholder: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [containerRef, setContainerRef] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef && !containerRef.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open, containerRef]);
+
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <div className="posm-cascade" ref={setContainerRef}>
+        <button type="button" className="posm-cascade-trigger" onClick={() => setOpen(!open)}>
+          <span className={value ? "posm-cascade-value" : "posm-cascade-placeholder"}>
+            {value || placeholder}
+          </span>
+          <ChevronDown size={16} className={`posm-cascade-arrow ${open ? "rotate" : ""}`} />
+        </button>
+        {open && (
+          <div className="posm-cascade-panel">
+            {options.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                className={`posm-cascade-item ${value === opt ? "selected" : ""}`}
+                onClick={() => { onChange(opt); setOpen(false); }}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </label>
+  );
+}
+
+function PosmCascadeSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [containerRef, setContainerRef] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef && !containerRef.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open, containerRef]);
+
+  const selectedLabel = value ? getPosmLabel(value) : "";
+
+  return (
+    <label className="field">
+      <span>POSM名称</span>
+      <div className="posm-cascade" ref={setContainerRef}>
+        <button type="button" className="posm-cascade-trigger" onClick={() => setOpen(!open)}>
+          <span className={value ? "posm-cascade-value" : "posm-cascade-placeholder"}>
+            {value ? selectedLabel : "请选择 POSM名称"}
+          </span>
+          <ChevronDown size={16} className={`posm-cascade-arrow ${open ? "rotate" : ""}`} />
+        </button>
+        {open && (
+          <div className="posm-cascade-panel">
+            {posmCatalog.map((cat) => {
+              const isExpanded = expanded === cat.category;
+              return (
+                <div key={cat.category} className={`posm-cascade-group ${isExpanded ? "expanded" : ""}`}>
+                  <button
+                    type="button"
+                    className="posm-cascade-category"
+                    onClick={() => setExpanded(isExpanded ? null : cat.category)}
+                  >
+                    <ChevronRight size={14} className={`posm-cascade-chevron ${isExpanded ? "rotate" : ""}`} />
+                    <span>{cat.category}</span>
+                    <span className="posm-cascade-count">{cat.items.length}</span>
+                  </button>
+                  {isExpanded && (
+                    <div className="posm-cascade-items">
+                      {cat.items.map((item) => (
+                        <button
+                          key={item.value}
+                          type="button"
+                          className={`posm-cascade-item ${value === item.value ? "selected" : ""}`}
+                          onClick={() => { onChange(item.value); setOpen(false); }}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </label>
   );
 }
 
